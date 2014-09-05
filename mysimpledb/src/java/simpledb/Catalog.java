@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import simpledb.TupleDesc.TDItem;
+
 /**
  * The Catalog keeps track of all available tables in the database and their
  * associated schemas.
@@ -18,12 +20,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+	private Map<String, DbFile> tableHash; // {name: table}
+	private Map<String, String> keyHash; // {name: keys as a string, weird}
+	
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
-        // some code goes here
+        tableHash = new HashMap<String, DbFile>();
+        keyHash = new HashMap<String, String>();
     }
 
     /**
@@ -36,11 +42,26 @@ public class Catalog {
      * @param pkeyField the name of the primary key field
      *                  conflict exists, use the last table to be added as the table for a given name.
      */
-    public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
+    public void addTable(DbFile file, String name, String pkeyField){
+        // check errors
+    	if (file == null){
+    		// Having an exception in the header breaks some code at the bottom
+    		throw new Exception("File is null");
+    	}
+    	if (name == null){
+    		// Same issue
+    		throw new Exception("Name is null");
+    	}
+    	if (pkeyField == null){
+    		// Same issue
+    		throw new Exception("Primary key field is null");
+    	}
+    	
+    	tableHash.put(name, file);
+    	
     }
 
-    public void addTable(DbFile file, String name) {
+    public void addTable(DbFile file, String name){
         addTable(file, name, "");
     }
 
@@ -52,7 +73,7 @@ public class Catalog {
      * @param file the contents of the table to add;  file.getId() is the identfier of
      *             this file/tupledesc param for the calls getTupleDesc and getFile
      */
-    public void addTable(DbFile file) {
+    public void addTable(DbFile file){
         addTable(file, (UUID.randomUUID()).toString());
     }
 
@@ -62,8 +83,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+        // search the catalog for a DbFile whose name == name. return the id of this table
+    	if (!tableHash.containsKey(name)){
+    		throw new NoSuchElementException("Table does not exist");
+    	}
+        return tableHash.get(name).getId();
     }
 
     /**
@@ -74,7 +98,12 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
+        // tableHash: {name: DbFile}
+    	for (DbFile file : tableHash.values()){
+    		if (file.getId() == tableid){
+    			return file.getTupleDesc();
+    		}
+    	}
         return null;
     }
 
@@ -86,22 +115,30 @@ public class Catalog {
      *                function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        // some code goes here
+    	for (DbFile file : tableHash.values()){
+    		if (file.getId() == tableid){
+    			return file;
+    		}
+    	}
         return null;
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
+        // I don't really get the relationship between keys and tables. Doesn't a table have many keys?
         return null;
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return null;
+    	List<Integer> ids = Arrays.asList(tableHash.values()); // iterates through the values, this should work
+        return ids.iterator();
     }
 
     public String getTableName(int id) {
-        // some code goes here
+    	for (String name : tableHash.keySet()){
+    		if (tableHash.get(name).getId() == id){
+    			return name;
+    		}
+    	}
         return null;
     }
 
@@ -109,7 +146,7 @@ public class Catalog {
      * Delete all tables from the catalog
      */
     public void clear() {
-        // some code goes here
+        tableHash.clear();
     }
 
     /**
