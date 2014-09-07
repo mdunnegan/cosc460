@@ -31,16 +31,15 @@ public class BufferPool {
      * constructor instead.
      */
     public static final int DEFAULT_PAGES = 50;
-    //public Page[] pages;
-    private Map<String, Page> bufferPages;
-    
+    private Page[] pages;
+        
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-    	bufferPages = new HashMap<String, Page>();
+    	pages = new Page[numPages];
     }
 
     public static int getPageSize() {
@@ -69,7 +68,26 @@ public class BufferPool {
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException { // when page number over limit
-        // some code goes here
+    	
+    	// go through all the pages, find the matching on
+    	for (int i = 0; i < pages.length; i++){
+    		if (pages[i].getId() == pid){
+    			return pages[i];
+    		}
+    	}
+    	// if it wasnt in the buffer pool
+    	
+    	// get the catalog
+    	Catalog catalog = Database.getCatalog();
+    	// get the db file out of the catalog
+    	DbFile dbfile = catalog.getDatabaseFile(pid.getTableId());
+    	
+    
+    	if (pages.length > pageSize){
+    		//throw TransactionAbortedException;
+    		pages[0] = dbfile.readPage(pid); 
+    	}
+    	    	
         return null;
     }
 

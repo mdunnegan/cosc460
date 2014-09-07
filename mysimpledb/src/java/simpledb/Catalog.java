@@ -46,15 +46,15 @@ public class Catalog {
         // check errors
     	if (file == null){
     		// Having an exception in the header breaks some code at the bottom
-    		throw new Exception("File is null");
+    		//throw new Exception("File is null");
     	}
     	if (name == null){
     		// Same issue
-    		throw new Exception("Name is null");
+    		//throw new Exception("Name is null");
     	}
     	if (pkeyField == null){
     		// Same issue
-    		throw new Exception("Primary key field is null");
+    		//throw new Exception("Primary key field is null");
     	}
     	
     	tableHash.put(name, file);
@@ -129,7 +129,7 @@ public class Catalog {
     }
 
     public Iterator<Integer> tableIdIterator() {
-    	List<Integer> ids = Arrays.asList(tableHash.values()); // iterates through the values, this should work
+    	List<Integer> ids = Arrays.asList(tableHash.values()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
         return ids.iterator();
     }
 
