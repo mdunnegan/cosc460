@@ -128,9 +128,16 @@ public class Catalog {
 
     public Iterator<Integer> tableIdIterator() {
     	
-    	List<Integer> ids = Arrays.asList(tableHash.values().getId()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
-        return ids.iterator();
-        
+    	// wont work
+    	//List<Integer> ids = Arrays.asList(tableHash.values().getId()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
+    	List ids = new ArrayList(tableHash.size());
+    	
+    	// iterate through these
+    	for (DbFile dbfile : tableHash.values()){
+    		ids.add(dbfile.getId());
+    	}
+    	
+    	return ids.iterator();     
     }
 
     public String getTableName(int id) {
