@@ -43,22 +43,16 @@ public class Catalog {
      *                  conflict exists, use the last table to be added as the table for a given name.
      */
     public void addTable(DbFile file, String name, String pkeyField){
-        // check errors
     	if (file == null){
-    		// Having an exception in the header breaks some code at the bottom
-    		//throw new Exception("File is null");
+    		throw new RuntimeException("File is null");
     	}
     	if (name == null){
-    		// Same issue
-    		//throw new Exception("Name is null");
+    		throw new RuntimeException("Name is null");
     	}
     	if (pkeyField == null){
-    		// Same issue
-    		//throw new Exception("Primary key field is null");
-    	}
-    	
-    	tableHash.put(name, file);
-    	
+    		throw new RuntimeException("pKeyField is null");
+    	}	
+    	tableHash.put(name, file);	
     }
 
     public void addTable(DbFile file, String name){
@@ -124,13 +118,19 @@ public class Catalog {
     }
 
     public String getPrimaryKey(int tableid) {
-        // I don't really get the relationship between keys and tables. Doesn't a table have many keys?
-        return null;
+    	for (String tableName : tableHash.keySet()){
+    		if (tableHash.get(tableName).getId() == tableid){
+    			return keyHash.get(tableName);
+    		}
+    	}
+    	return null;
     }
 
     public Iterator<Integer> tableIdIterator() {
-    	List<Integer> ids = Arrays.asList(tableHash.values()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
+    	
+    	List<Integer> ids = Arrays.asList(tableHash.values().getId()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
         return ids.iterator();
+        
     }
 
     public String getTableName(int id) {
