@@ -313,12 +313,31 @@ public class HeapPage implements Page {
     }
 
     /**
-     * @return an iterator over all tuples on this page (calling remove on this iterator throws an UnsupportedOperationException)
+     * @return an iterator over all tuples on this page (calling remove on this iterator throws 
+     * an UnsupportedOperationException)
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+    	// call iterator on a list of non-empty tuples
+    	
+    	/*
+    	 * Idea 1: Go through all the tuples, find the ones that aren't empty by using the 
+    	 * 'toString' method. Add them to a list
+    	 * 
+    	 * Idea 2: Go through the header file. Find out if the tuple is legit. If it is, 
+    	 * grab it and add it to a list
+    	 * 
+    	 */
+    	
+    	List<Tuple> tuplesWithData = new ArrayList();
+    	for (Tuple t : tuples){
+    		if (t != null){
+    			tuplesWithData.add(t);
+    		}
+    	}
+    	
+        return tuplesWithData.iterator();
     }
 
 }
