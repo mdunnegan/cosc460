@@ -4,24 +4,42 @@ package simpledb;
  * Unique identifier for HeapPage objects.
  */
 public class HeapPageId implements PageId {
-
+	
+	private int tId;
+	private int pNum;
     /**
-     * Constructor. Create a page id structure for a specific page of a
-     * specific table.
+     * Constructor. Create a page id structure for a specific page of a 
+     * specific table. // map of tables
      *
      * @param tableId The table that is being referenced
      * @param pgNo    The page number in that table.
      */
     public HeapPageId(int tableId, int pgNo) {
-        // some code goes here
+    	
+    	if (tableId < 0) { // or tableId DNE
+    		throw new RuntimeException("Table Id is invalid");
+    	} if (pgNo < 0) { // or pgNo DNE
+    		throw new RuntimeException("Page Number is invalid");
+    	}
+    	
+    	tId = tableId;
+    	pNum = pgNo;
+    	
+    	// make a new DbIterator
+    	
+    	//private int pageId = new int;
+    	// Get the table
+    	// Get the page
+    	// validate them
+    	// find
+    	
     }
 
     /**
      * @return the table associated with this PageId
      */
     public int getTableId() {
-        // some code goes here
-        return 0;
+        return tId;
     }
 
     /**
@@ -29,8 +47,7 @@ public class HeapPageId implements PageId {
      * this PageId
      */
     public int pageNumber() {
-        // some code goes here
-        return 0;
+        return pNum;
     }
 
     /**
@@ -40,8 +57,10 @@ public class HeapPageId implements PageId {
      * @see BufferPool
      */
     public int hashCode() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+    	String code = new String();
+    	code = tId + " " + pNum;
+        return code.hashCode();
+        //throw new UnsupportedOperationException("implement this");
     }
 
     /**
@@ -53,6 +72,12 @@ public class HeapPageId implements PageId {
      */
     public boolean equals(Object o) {
         // some code goes here
+    	if (o.getClass() == PageId.class){
+    		PageId obj = (PageId) o; // attempt at typecasting
+    		if (obj.pageNumber() == pNum && obj.getTableId() == tId){
+    			return true;
+    		}
+    	}
         return false;
     }
 
