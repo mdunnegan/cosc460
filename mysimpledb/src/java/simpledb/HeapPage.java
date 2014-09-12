@@ -330,7 +330,7 @@ public class HeapPage implements Page {
     	 * 
     	 */
     	
-    	List<Tuple> tuplesWithData = new ArrayList();
+    	List<Tuple> tuplesWithData = new ArrayList<Tuple>();
     	for (Tuple t : tuples){
     		if (t != null){
     			tuplesWithData.add(t);
