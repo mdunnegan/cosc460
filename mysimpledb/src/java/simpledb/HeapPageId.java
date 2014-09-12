@@ -72,9 +72,9 @@ public class HeapPageId implements PageId {
      */
     public boolean equals(Object o) {
         // some code goes here
-    	if (o.getClass() == PageId.class){
-    		PageId obj = (PageId) o; // attempt at typecasting
-    		if (obj.pageNumber() == pNum && obj.getTableId() == tId){
+    	if (o instanceof HeapPageId){
+    		HeapPageId obj = (HeapPageId) o; // attempt at typecasting
+    		if (obj.pageNumber() == pNum && obj.pNum == tId){
     			return true;
     		}
     	}
