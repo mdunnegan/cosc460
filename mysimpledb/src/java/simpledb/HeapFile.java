@@ -15,14 +15,17 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+	private HeapPage[] pages;
+	private File file;
+	private TupleDesc tupleDesc;
     /**
      * Constructs a heap file backed by the specified file.
-     *
      * @param f the file that stores the on-disk backing store for this heap
      *          file.
      */
     public HeapFile(File f, TupleDesc td) {
-        // some code goes here
+    	file = f;
+    	tupleDesc = td;
     }
 
     /**
@@ -31,13 +34,12 @@ public class HeapFile implements DbFile {
      * @return the File backing this HeapFile on disk.
      */
     public File getFile() {
-        // some code goes here
-        return null;
+        return file;
     }
 
     /**
      * Returns an ID uniquely identifying this HeapFile. Implementation note:
-     * you will need to generate this tableid somewhere ensure that each
+     * you will need to generate this tableid somewhere TO (doesn't anyone proofread these things) ensure that each
      * HeapFile has a "unique id," and that you always return the same value for
      * a particular HeapFile. We suggest hashing the absolute file name of the
      * file underlying the heapfile, i.e. f.getAbsoluteFile().hashCode().
@@ -45,8 +47,7 @@ public class HeapFile implements DbFile {
      * @return an ID uniquely identifying this HeapFile.
      */
     public int getId() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return file.getAbsoluteFile().hashCode();
     }
 
     /**
@@ -55,14 +56,31 @@ public class HeapFile implements DbFile {
      * @return TupleDesc of this DbFile.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return tupleDesc;
     }
 
     // see DbFile.java for javadocs
-    public Page readPage(PageId pid) {
-        // some code goes here
-        return null;
+    public Page readPage(PageId pid) throws IllegalArgumentException {
+    	
+     	BufferPool b = Database.getBufferPool();
+    	int pageNumber = pid.pageNumber();
+    	int pageSize = b.PAGE_SIZE;
+    	HeapPage heapPage = null;
+    	
+    	byte[] byteArray = new byte[pageSize];
+    	BufferedInputStream data = null;
+    	    	
+    	try {
+    		data = new BufferedInputStream(new FileInputStream(file));
+    		data.skip(pageSize * pageNumber);
+    		data.read(byteArray);
+    		HeapPageId hpid = (HeapPageId) pid;
+	    	heapPage = new HeapPage(hpid, byteArray); 
+	    	data.close();
+    	} catch (IOException e) {
+    		System.err.println("IO Error");
+    	}
+        return heapPage;
     }
 
     // see DbFile.java for javadocs
@@ -75,8 +93,7 @@ public class HeapFile implements DbFile {
      * Returns the number of pages in this HeapFile.
      */
     public int numPages() {
-        // some code goes here
-        return 0;
+    	return pages.length;
     }
 
     // see DbFile.java for javadocs
@@ -97,9 +114,69 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-        // some code goes here
-        return null;
+    	return new HeapFileIterator(tid);
     }
+    
+    // Iterates through tuples
+	class HeapFileIterator implements DbFileIterator {
 
+		Iterator<Tuple> tuples;
+		//Iterator<HeapPage> heapPages;
+		private int pageNum;
+		private int numPages;
+		private TransactionId transactionId;
+		private boolean iteratorOpen;
+		
+		public HeapFileIterator(TransactionId tid){
+			pageNum = 0; 
+			numPages = numPages();
+			transactionId = tid;
+			iteratorOpen = false;
+		}
+		
+		@Override
+		public boolean hasNext() {
+			if (!iteratorOpen){
+				throw new RuntimeException("Iterator is not open");
+			}
+			if (pageNum <= numPages){
+				return true;
+			}
+			return false;
+		}
+
+		@Override
+		public Tuple next() {
+			if (!iteratorOpen){
+				throw new RuntimeException("Iterator is not open");
+			}
+			pageNum++;
+			if (tuples.hasNext()){
+				return tuples.next();
+			}
+			return null;
+		}
+
+		@Override
+		public void open() throws DbException, TransactionAbortedException {
+			if (iteratorOpen){
+				System.err.println("Iterator is already open");
+				throw new TransactionAbortedException();	
+			}
+			iteratorOpen = true;
+		}
+
+		@Override
+		public void rewind() throws DbException, TransactionAbortedException {
+			// go to beginning of iterator and keep it open
+			pageNum = 0;
+		}
+
+		@Override
+		public void close() {
+			iteratorOpen = false;
+		}
+	}
+    	
 }
 
