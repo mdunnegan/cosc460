@@ -159,17 +159,22 @@ public class TupleDesc implements Serializable {
      * @return the new TupleDesc
      */
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
-    	int td1len = td1.schema.length;
-    	int td2len = td2.schema.length;
+    	int td1len = td1.numFields();
+    	int td2len = td2.numFields();
     	
-    	TDItem[] schema = new TDItem[td1len + td2len];
+    	Type[] types = new Type[td1len + td2len];
+    	String[] names = new String[td1len + td2len];
+    	
         for (int i = 0; i < td1len; i++){
-        	schema[i] = td1.schema[i];
+        	//schema[i] = td1.schema[i];
+        	types[i] = td1.getFieldType(i);
+        	names[i] = td1.getFieldName(i);
         }
         for (int j = 0; j < td2len; j++){
-        	schema[j+td1len] = td2.schema[j]; 
+        	types[j+td1len] = td2.getFieldType(j);
+        	types[j+td1len] = td2.getFieldType(j);
         }
-        return null;
+        return new TupleDesc(types, names);
     }
 
     /**
