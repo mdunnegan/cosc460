@@ -9,7 +9,12 @@ Michael Dunnegan
 
 2. What did you think of this assignment?
 
-It was long, up to the milestone, and I wasn't always clear on the directions. For the milestone, I would have also preferred a little more time
+It was long, up to the milestone, and I wasn't always clear on the directions. 
+For the milestone, I would have also preferred a little more time. Looking back, time
+wasn't necessarily the issue. I'd attribute the difficulty of this lab to my 
+lack of recent experience with java. Another thing that I had trouble with was debugging.
+I am fairly confident in most of my code, but I could not get all the unit tests
+to pass, despite my best efforts. 
 
 3. What was the hardest part of this assignment?
 
@@ -18,9 +23,10 @@ BufferPool
 
 4. Describe any missing or incomplete elements of your code.
 
-Right now, Catalog is missing Iterator (although it must be close), and primary key. Additionally, bufferpool concepts. 
+All the methods are implemented, however many of them are not passing their unit tests. 
+I'm positive that many of them are very close to working. 
 
 5. Roughly how long did you spend working on this lab?
 
-2 hrs + 1 hr + 3 hours so far. 
+Around 12-14 hours. 
 
