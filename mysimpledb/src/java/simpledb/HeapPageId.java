@@ -15,24 +15,8 @@ public class HeapPageId implements PageId {
      * @param pgNo    The page number in that table.
      */
     public HeapPageId(int tableId, int pgNo) {
-    	
-    	if (tableId < 0) { // or tableId DNE
-    		throw new RuntimeException("Table Id is invalid");
-    	} if (pgNo < 0) { // or pgNo DNE
-    		throw new RuntimeException("Page Number is invalid");
-    	}
-    	
     	tId = tableId;
-    	pNum = pgNo;
-    	
-    	// make a new DbIterator
-    	
-    	//private int pageId = new int;
-    	// Get the table
-    	// Get the page
-    	// validate them
-    	// find
-    	
+    	pNum = pgNo;    	
     }
 
     /**
@@ -74,7 +58,7 @@ public class HeapPageId implements PageId {
         // some code goes here
     	if (o instanceof HeapPageId){
     		HeapPageId obj = (HeapPageId) o; // attempt at typecasting
-    		if (obj.pageNumber() == pNum && obj.pNum == tId){
+    		if (obj.pageNumber() == pNum && obj.getTableId() == tId){
     			return true;
     		}
     	}

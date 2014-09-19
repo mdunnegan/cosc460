@@ -8,6 +8,9 @@ import java.util.*;
  */
 public class TupleDesc implements Serializable {
 
+	private static final long serialVersionUID = 1L;
+    private TDItem[] schema;
+    
     /**
      * A help class to facilitate organizing the information of each field
      */
@@ -31,9 +34,6 @@ public class TupleDesc implements Serializable {
         }
     }// end of TDItem class
 
-    private static final long serialVersionUID = 1L;
-    private TDItem[] schema;
-    
     /**
      * Create a new TupleDesc with typeAr.length fields with fields of the
      * specified types, with associated named fields.
@@ -88,14 +88,11 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public String getFieldName(int i) throws NoSuchElementException {
-        try {
-        	String fieldName = schema[i].fieldName; // 0 is type, 1 is field name
-        	return fieldName;
-        }
-        catch (NoSuchElementException error){
-        	System.out.println("No such field: " + error.getMessage());
-        }
-        return null;
+    	if (i > schema.length -1 || i < 0){
+    		throw new NoSuchElementException("Field out of bounds");
+    	} else {
+    		return schema[i].fieldName;
+    	}   
     }
 
     /**
@@ -107,14 +104,10 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public Type getFieldType(int i) throws NoSuchElementException {
-        try {
-        	Type type = schema[i].fieldType;
-        	return type;
-        } 
-        catch (NoSuchElementException error) {
-        	System.out.println("No such field: " + error.getMessage());
-        }
-        return null;
+    	if (i > schema.length){
+    		throw new NoSuchElementException("Field out of bounds");
+    	}
+        return schema[i].fieldType;
     }
 
     /**
@@ -125,17 +118,17 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
-        try {
-        	for (int i = 0; i < schema.length; i++){
-            	if (schema[i].fieldName == name){
-            		return i;
-            	}
-            }
+    	for (int i=0;i<schema.length;i++) {
+    		// calling .equals on something null is causing the error
+     		if (schema[i].fieldName == null){
+    			continue;
+    		}
+        	if (schema[i].fieldName.equals(name)) {
+        		return i;
+        	}
         }
-        catch (NoSuchElementException error){
-        	System.out.println("No such field: " + error.getMessage());
-        }
-        return 0;
+    	// It's catching an IndexOutOfBoundsException. No idea why. 
+        throw new NoSuchElementException("Tuple was not found");
     }
 
     /**
@@ -159,22 +152,20 @@ public class TupleDesc implements Serializable {
      * @return the new TupleDesc
      */
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
-    	int td1len = td1.numFields();
-    	int td2len = td2.numFields();
     	
-    	Type[] types = new Type[td1len + td2len];
-    	String[] names = new String[td1len + td2len];
-    	
-        for (int i = 0; i < td1len; i++){
-        	//schema[i] = td1.schema[i];
+    	Type[] types = new Type[td1.numFields()+td2.numFields()];
+        String[] names = new String[td1.numFields()+td2.numFields()];
+        
+        for(int i=0;i<td1.numFields();i++) {
         	types[i] = td1.getFieldType(i);
         	names[i] = td1.getFieldName(i);
         }
-        for (int j = 0; j < td2len; j++){
-        	types[j+td1len] = td2.getFieldType(j);
-        	types[j+td1len] = td2.getFieldType(j);
+        for(int i=0;i<td2.numFields();i++) {
+        	types[i+td1.numFields()] = td2.getFieldType(i);
+        	names[i+td1.numFields()] = td2.getFieldName(i);
         }
-        return new TupleDesc(types, names);
+        
+    	return new TupleDesc(types, names);
     }
 
     /**
@@ -189,17 +180,17 @@ public class TupleDesc implements Serializable {
     	if (o == null){
     		return false;
     	}
-    	if (o.getClass() != schema.getClass()){
+    	if (!o.getClass().equals(this.getClass())){
     		return false;
     	}
     	
     	TupleDesc obj = (TupleDesc) o;
-    	if (obj.numFields() != schema.length) {
+    	if (obj.numFields() != this.numFields()) {
 			return false;
 		}
     	
-        for (int i = 0; i < schema.length; i++){
-        	if (obj.schema[i].fieldType != schema[i].fieldType){
+        for (int i = 0; i < this.numFields(); i++){
+        	if (!this.getFieldType(i).equals(obj.getFieldType(i))){
         		return false;
         	}
         }  
@@ -220,17 +211,15 @@ public class TupleDesc implements Serializable {
      * @return String describing this descriptor.
      */
     public String toString() {
-    	String tupDescString = "";
-        for (int i = 0; i < schema.length; i++){
-        	
-        	tupDescString += schema[i].fieldName.toString();
-        	tupDescString += "(";
-        	tupDescString += schema[i].fieldType.toString();
-        	tupDescString += ")";
-        	tupDescString += ", ";
-        	
-        }
-        return tupDescString;
+    	String str = "";
+    	for (int i=0;i<schema.length;i++) {
+    		str+=schema[i].fieldName;
+    		str+="(" + schema[i].fieldType.toString() + ")";
+    		if (!(i == schema.length-1)){
+    			str += ", ";
+    		}
+    	}
+    	return str;
     }
 
     /**

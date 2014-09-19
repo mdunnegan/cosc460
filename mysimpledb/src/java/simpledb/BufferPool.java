@@ -75,16 +75,16 @@ public class BufferPool {
     			return pages[i];
     		}
     	}
-    	// if it wasnt in the buffer pool
+    	
+    // if it wasn't in the buffer pool
     	
     	// get the catalog
     	Catalog catalog = Database.getCatalog();
     	// get the db file out of the catalog
     	DbFile dbfile = catalog.getDatabaseFile(pid.getTableId());
     	
-    
     	if (pages.length > pageSize){
-    		//throw TransactionAbortedException;
+    		// First page gets evicted
     		pages[0] = dbfile.readPage(pid); 
     	}
     	    	

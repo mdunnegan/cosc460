@@ -1,10 +1,9 @@
 package simpledb;
-
-import java.io.File;
+import java.io.*;
 
 public class Lab1Main {
 
-	public static void main(String[] argv) {
+    public static void main(String[] argv) {
 
         // construct a 3-column table schema
         Type types[] = new Type[]{ Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE };
@@ -34,4 +33,5 @@ public class Lab1Main {
             System.out.println ("Exception : " + e);
         }
     }
+
 }

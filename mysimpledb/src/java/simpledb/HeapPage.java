@@ -12,11 +12,14 @@ import java.io.*;
  */
 public class HeapPage implements Page {
 
-    final HeapPageId pid;
-    final TupleDesc td;
-    final byte header[];
-    final Tuple tuples[];
-    final int numSlots;
+    HeapPageId pid;
+    TupleDesc td;
+    byte header[];
+    Tuple tuples[];
+    int numSlots;
+    boolean isDirty;
+    TransactionId dirtyId;
+    
 
     byte[] oldData;
     private final Byte oldDataLock = new Byte((byte) 0);
@@ -245,8 +248,15 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    	  	
+    	for (Tuple tup : tuples){
+    		if (tup.equals(t)){
+    			// doesn't matter if slot is used	
+    			this.markSlotUsed(t.getRecordId().tupleno(), false);
+    			t = null;
+    		}
+    	}
+    	throw new DbException("Such a tuple did not exist");
     }
 
     /**
@@ -258,8 +268,16 @@ public class HeapPage implements Page {
      *                     is mismatch.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    	
+    	if (this.getNumEmptySlots() > 0){ 	
+			for (int i = 0; i < tuples.length; i++){
+				if (isSlotUsed(i)){
+					tuples[i] = t;
+					this.markSlotUsed(t.getRecordId().tupleno(), true);
+				}
+			}
+    	}
+    	throw new DbException("This page is full");
     }
 
     /**
@@ -267,17 +285,19 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // some code goes here
-        // not necessary for lab1
+        isDirty = dirty; // can mark something as clean or dirty
+        if (dirty){
+        	dirtyId = tid;
+        } else {
+        	dirtyId = null;
+        }
     }
 
     /**
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // some code goes here
-        // Not necessary for lab1
-        return null;      
+        return dirtyId;
     }
 
     /**
@@ -285,8 +305,8 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
     	int numEmptySlots = 0;
-        for (int i = 0; i < header.length; i++)
-        	if (isSlotUsed(i)){
+        for (int i = 0; i < numSlots; i++)
+        	if (!isSlotUsed(i)){
         		numEmptySlots++;
         	}
         return numEmptySlots;
@@ -295,10 +315,11 @@ public class HeapPage implements Page {
     /**
      * Returns true if associated slot on this page is filled.
      */
+    
     public boolean isSlotUsed(int i) {
-    	int offset = i%8;
-    	int whichByte = (int) Math.floor(i/8);
-    	if ((header[whichByte] & (int) Math.pow(2, offset)) == 0){
+    	int offset = i % 8;
+        int whichByte = (int) Math.floor(i/8);
+    	if ((header[whichByte] & (int) Math.pow(2,offset)) != 0){
     		return true;
     	}
     	return false;
@@ -307,9 +328,21 @@ public class HeapPage implements Page {
     /**
      * Abstraction to fill or clear a slot on this page.
      */
+    
+    // I don't understand the purpose of this
     private void markSlotUsed(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
+        // if value is TRUE, header[i] becomes 1, if values is FALSE, header[i] becomes 0
+    	
+    	// set the header bit to 1 or 0 forgot which one, but this indicated used or not
+    	for (int loopindex = 0; i < header.length; i++){
+    		if (loopindex == i){
+    			if (value){ 
+    				header[i] = 1;
+    			} else {
+    				header[i] = 0;
+    			}
+    		}
+    	}  	
     }
 
     /**
@@ -330,6 +363,7 @@ public class HeapPage implements Page {
     	 * 
     	 */
     	
+    	// idea 1:
     	List<Tuple> tuplesWithData = new ArrayList<Tuple>();
     	for (Tuple t : tuples){
     		if (t != null){

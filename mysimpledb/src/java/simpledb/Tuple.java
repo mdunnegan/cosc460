@@ -22,9 +22,9 @@ public class Tuple implements Serializable {
      * @param td the schema of this tuple. It must be a valid TupleDesc
      *           instance with at least one field.
      */
-    public Tuple(TupleDesc td) throws Exception{
+    public Tuple(TupleDesc td){
     	if (td == null){
-    		throw new Exception("Parameter is null, should be type TupleDesc");
+    		throw new RuntimeException("Parameter is null, should be type TupleDesc");
     	}
     	fields = new Field[td.numFields()];
     	tupleDesc = td; // shoots it to the global variable
@@ -51,10 +51,10 @@ public class Tuple implements Serializable {
      *
      * @param rid the new RecordId for this tuple.
      */
-    public void setRecordId(RecordId rid) throws Exception{
-    	if (rid == null){
-    		throw new Exception("Record ID is null");
-    	}
+    public void setRecordId(RecordId rid){
+//    	if (rid == null){
+//    		throw new RuntimeException("Record ID is null");
+//    	}
         recordID = rid;
     }
 
@@ -64,13 +64,9 @@ public class Tuple implements Serializable {
      * @param i index of the field to change. It must be a valid index.
      * @param f new value for the field.
      */
-    public void setField(int i, Field f) throws Exception{
-    	if (fields.length < i || i < 0){
-    		throw new Exception("Index does not exist");
-    	}
-    	Type fieldType = tupleDesc.getFieldType(i);
-    	if (tupleDesc.getFieldType(i) != f.getType()){
-    		throw new Exception("Invalid field type");
+    public void setField(int i, Field f){
+       	if (tupleDesc.getFieldType(i) != f.getType()){
+    		throw new RuntimeException("Invalid field type");
     	}
         fields[i] = f;
     }
@@ -80,9 +76,6 @@ public class Tuple implements Serializable {
      * @return the value of the ith field, or null if it has not been set.
      */
     public Field getField(int i) {
-    	if (i < fields.length || i < 0) {
-    		return null;
-    	}
     	return fields[i];
     }
 
@@ -100,8 +93,6 @@ public class Tuple implements Serializable {
         	contents += fields[i];
         	contents += "\t";
         }
-        // what
-        //throw new UnsupportedOperationException("Implement this");
         return contents;
         
     }

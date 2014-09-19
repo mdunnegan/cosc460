@@ -47,7 +47,6 @@ public class RecordId implements Serializable {
     @Override
     public boolean equals(Object o) {
         if (o instanceof RecordId){
-        	
         	RecordId obj = (RecordId) o;
         	if (obj.hashCode() == this.hashCode()){
         		return true;

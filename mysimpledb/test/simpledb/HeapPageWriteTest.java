@@ -38,12 +38,12 @@ public class HeapPageWriteTest extends SimpleDbTestBase {
         HeapPage page = new HeapPage(pid, HeapPageReadTest.EXAMPLE_DATA);
         page.markDirty(true, tid);
         TransactionId dirtier = page.isDirty();
-        assertEquals(true, dirtier != null);
-        assertEquals(true, dirtier == tid);
+        assertEquals(true, dirtier != null); // we just made a dirtier
+        assertEquals(true, dirtier == tid);  // with this tid
 
         page.markDirty(false, tid);
         dirtier = page.isDirty();
-        assertEquals(false, dirtier != null);
+        assertEquals(false, dirtier != null); // dirtier should equal null
     }
 
     /**

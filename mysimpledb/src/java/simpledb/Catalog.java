@@ -91,14 +91,16 @@ public class Catalog {
      *                function passed to addTable
      * @throws NoSuchElementException if the table doesn't exist
      */
+    
+    // Don't know why this isn't working
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // tableHash: {name: DbFile}
     	for (DbFile file : tableHash.values()){
     		if (file.getId() == tableid){
     			return file.getTupleDesc();
     		}
     	}
-        return null;
+    	return null;	
+        //throw new NoSuchElementException("No such element");
     }
 
     /**
