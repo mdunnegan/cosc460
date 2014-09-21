@@ -3,8 +3,11 @@ package simpledb;
 import java.io.*;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import java.util.List;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -24,6 +27,7 @@ public class BufferPool {
     public static final int PAGE_SIZE = 4096;
 
     private static int pageSize = PAGE_SIZE;
+    private int numPages;
 
     /**
      * Default number of pages passed to the constructor. This is used by
@@ -31,15 +35,16 @@ public class BufferPool {
      * constructor instead.
      */
     public static final int DEFAULT_PAGES = 50;
-    private Page[] pages;
+    private List<Page> pages;
         
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
-    public BufferPool(int numPages) {
-    	pages = new Page[numPages];
+    public BufferPool(int np) {
+    	pages = new LinkedList<Page>();
+    	numPages = np;
     }
 
     public static int getPageSize() {
@@ -70,25 +75,27 @@ public class BufferPool {
             throws TransactionAbortedException, DbException { // when page number over limit
     	
     	// go through all the pages, find the matching on
-    	for (int i = 0; i < pages.length; i++){
-    		if (pages[i].getId() == pid){
-    			return pages[i];
+    	for (int i = 0; i < pages.size(); i++){
+    		if (pages.get(i).getId().equals(pid)){
+    			return pages.get(i);
     		}
     	}
     	
     // if it wasn't in the buffer pool
-    	
-    	// get the catalog
-    	Catalog catalog = Database.getCatalog();
-    	// get the db file out of the catalog
-    	DbFile dbfile = catalog.getDatabaseFile(pid.getTableId());
-    	
-    	if (pages.length > pageSize){
-    		// First page gets evicted
-    		pages[0] = dbfile.readPage(pid); 
+    	if (pages.size() == numPages){
+    		System.out.println(pages.size() + "pages.Size");
+    		System.out.println(numPages + "numPages");
+    		
+    		throw new DbException("No more space");
+    		
     	}
+    	
+    	DbFile dbfile = Database.getCatalog().getDatabaseFile(pid.getTableId());
+    	
+    	HeapPage newPage = (HeapPage) dbfile.readPage(pid);
+    	pages.add(newPage);
     	    	
-        return null;
+        return newPage;
     }
 
     /**

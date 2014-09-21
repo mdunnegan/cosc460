@@ -16,7 +16,6 @@ public class SeqScan implements DbIterator {
     private DbFile dbTable;
     private DbFileIterator iterator;
     
-
     /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
@@ -35,15 +34,19 @@ public class SeqScan implements DbIterator {
     	tableId = tableid;
     	tAlias = tableAlias;
     	dbTable = Database.getCatalog().getDatabaseFile(tableid);
+    	iterator = dbTable.iterator(trId);
     }
 
+    public SeqScan(TransactionId tid, int tableid) {
+        this(tid, tableid, Database.getCatalog().getTableName(tableid));
+    }
+    
     /**
      * @return return the table name of the table the operator scans. This should
      * be the actual name of the table in the catalog of the database
      */
     public String getTableName() {
-        Catalog c = Database.getCatalog();
-        return c.getTableName(tableId);
+        return Database.getCatalog().getTableName(tableId);
     }
 
     /**
@@ -51,10 +54,6 @@ public class SeqScan implements DbIterator {
      */
     public String getAlias() {
         return tAlias;
-    }
-
-    public SeqScan(TransactionId tid, int tableid) {
-        this(tid, tableid, Database.getCatalog().getTableName(tableid));
     }
 
     public void open() throws DbException, TransactionAbortedException {
@@ -69,31 +68,26 @@ public class SeqScan implements DbIterator {
      *
      * @return the TupleDesc with field names from the underlying HeapFile,
      * prefixed with the tableAlias string from the constructor.
+     * TupleDesc (type, tableAlias-tableName)
      */
     public TupleDesc getTupleDesc() {
-    	// get one tuple from the heapfile
-    	Catalog c = Database.getCatalog();
-    	TupleDesc td = c.getTupleDesc(tableId);
-    	    	
-    	// prefix it with tableAlias by merging a new TupleDesc in front of it
-   
-    	Type[] aliasType = {Type.STRING_TYPE};
-    	String[] aliasName = {"Alias"};
-    	TupleDesc alias = new TupleDesc(aliasType, aliasName);
+    	TupleDesc td = Database.getCatalog().getTupleDesc(tableId);
+    	Type[] types = new Type[td.numFields()];
+    	String[] names = new String[td.numFields()];
     	
-    	return td.merge(td, alias);
+    	for (int i = 0; i < td.numFields(); i++){
+    		types[i] = td.getFieldType(i);
+    		names[i] = getAlias() + "." + td.getFieldName(i);
+    	}
+    	return new TupleDesc(types, names);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
-        if (iterator.hasNext()){
-        	return true;
-        }
-        return false;
+        return iterator.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException, TransactionAbortedException, DbException {
-        iterator.next();
-        return null;
+        return iterator.next();
     }
 
     public void close() {

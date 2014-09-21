@@ -44,9 +44,9 @@ public class HeapPage implements Page {
      * @see BufferPool#getPageSize()
      */
     public HeapPage(HeapPageId id, byte[] data) throws IOException {
-        this.pid = id;
-        this.td = Database.getCatalog().getTupleDesc(id.getTableId());
-        this.numSlots = getNumTuples();
+        pid = id;
+        td = Database.getCatalog().getTupleDesc(id.getTableId());
+        numSlots = getNumTuples();
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data));
 
         // allocate and read the header slots of this page
@@ -248,15 +248,15 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-    	  	
-    	for (Tuple tup : tuples){
-    		if (tup.equals(t)){
-    			// doesn't matter if slot is used	
-    			this.markSlotUsed(t.getRecordId().tupleno(), false);
-    			t = null;
-    		}
+    	PageId pageId = t.getRecordId().getPageId();
+    	int tupleNum = t.getRecordId().tupleno();
+    	if (tupleNum > numSlots || pageId != pid){
+    		throw new DbException("Such a tuple did not exist");
     	}
-    	throw new DbException("Such a tuple did not exist");
+    	if (isSlotUsed(tupleNum) == false){
+    		throw new DbException("Tuple was already empty");
+    	}
+    	markSlotUsed(tupleNum, false);
     }
 
     /**
@@ -268,16 +268,29 @@ public class HeapPage implements Page {
      *                     is mismatch.
      */
     public void insertTuple(Tuple t) throws DbException {
-    	
-    	if (this.getNumEmptySlots() > 0){ 	
-			for (int i = 0; i < tuples.length; i++){
-				if (isSlotUsed(i)){
-					tuples[i] = t;
-					this.markSlotUsed(t.getRecordId().tupleno(), true);
-				}
-			}
+    	// off by 1 error
+    	if (getNumEmptySlots() == 0){
+    		throw new DbException("This page is full");
     	}
-    	throw new DbException("This page is full");
+    	if (!td.equals(t.getTupleDesc())){
+    		throw new RuntimeException("Tuple does not match pages tupledesc");
+    	}
+    	
+    	int pageNo = 0;
+    	while(isSlotUsed(pageNo)){
+    		pageNo++;
+    	}
+    	tuples[pageNo] = t;
+    	t.setRecordId(new RecordId(pid, pageNo));
+ 	    // not updating the number of free slots.
+    	// 484 Free -> add tuple -> 484 free
+    	// mark slot used?
+    	System.out.println(pageNo + "pageNo");
+    	System.out.println(isSlotUsed(pageNo));
+    	System.out.println(tuples);
+    	markSlotUsed(pageNo, true);
+    	
+    	
     }
 
     /**
@@ -305,10 +318,12 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
     	int numEmptySlots = 0;
-        for (int i = 0; i < numSlots; i++)
+        for (int i = 0; i < tuples.length; i++){
         	if (!isSlotUsed(i)){
         		numEmptySlots++;
         	}
+        }
+        //System.out.println(numEmptySlots + " numEmptySlots in method");
         return numEmptySlots;
     }
 
@@ -317,9 +332,19 @@ public class HeapPage implements Page {
      */
     
     public boolean isSlotUsed(int i) {
-    	int offset = i % 8;
-        int whichByte = (int) Math.floor(i/8);
-    	if ((header[whichByte] & (int) Math.pow(2,offset)) != 0){
+    	if(i>=numSlots || i<0){
+    		throw new IllegalArgumentException("Illegal argument");
+    	}
+    	
+    	int bit = i%8;
+    	int byt = i/8;
+    	
+    	if (byt > getHeaderSize()-1){
+    		return false;
+    	}
+    	
+    	byte whichByte = header[byt];
+    	if ((1<<bit & whichByte) != 0){
     		return true;
     	}
     	return false;
@@ -329,20 +354,21 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     
-    // I don't understand the purpose of this
     private void markSlotUsed(int i, boolean value) {
-        // if value is TRUE, header[i] becomes 1, if values is FALSE, header[i] becomes 0
+    	int byt = i/8;
+    	int bit = i%8;
     	
-    	// set the header bit to 1 or 0 forgot which one, but this indicated used or not
-    	for (int loopindex = 0; i < header.length; i++){
-    		if (loopindex == i){
-    			if (value){ 
-    				header[i] = 1;
-    			} else {
-    				header[i] = 0;
-    			}
-    		}
-    	}  	
+    	int mask = (int) Math.pow(2,(bit));
+    	
+    	byte headerByte = header[byt];
+    	if (value) {
+    		// marking the slot as used
+    		this.header[i/8] = (byte) (headerByte | mask);
+    	} else {
+    		// marking the slot as free
+    		int inverted_mask = 255 ^ mask;
+    		this.header[i/8] = (byte) (headerByte & inverted_mask);
+    	}
     }
 
     /**
