@@ -85,15 +85,11 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     
     public void writePage(Page page) throws IOException {
+    	RandomAccessFile raf = new RandomAccessFile(file, "rw");
         int offset = page.getId().pageNumber() * BufferPool.getPageSize();
-        byte[] pageData = page.getPageData();
-		BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
-        try {
-        	bos.write(pageData, offset, pageData.length);
-        	bos.close();
-        } catch(IOException e) {
-        	throw new RuntimeException("IO Exception");
-        }
+        raf.skipBytes(offset);
+        raf.write(page.getPageData());
+        raf.close();
     }
 
     /**
@@ -110,31 +106,39 @@ public class HeapFile implements DbFile {
         
     	ArrayList<Page> returnArray = new ArrayList<Page>();
     	BufferPool b = Database.getBufferPool();
-    	HeapPage hp = null;
     	HeapPageId hpid = null;
+    	HeapPage hp = null;
+    	int numPgs = numPages();
     	
-    	int hfid = getId();
+    	System.out.println(numPages() + " = numPages()");
     	
-        boolean wasInserted = false;
-    	for (int i = 0; i < numPages()-1; i++){
-    		// found an available page
+    	for (int i = 0; i < numPgs-1; i++){
     		if (pages[i].getNumEmptySlots() > 0){
-    			hpid = new HeapPageId(hfid, i);
-    			hp = (HeapPage) b.getPage(tid, hpid, null);
-    			wasInserted = true;
-    		}	
+    			// get this magical heappage with space for us
+    			hpid = new HeapPageId(getId(), i);
+    			hp = (HeapPage) b.getPage(tid, (PageId)hpid, null);
+    			break;
+    		}
     	}
     	
-    	if (wasInserted){
-    		hp.insertTuple(t);
-    	} else {
-    		hpid = new HeapPageId(hfid, numPages()+1); 
-    		hp = new HeapPage(hpid, HeapPage.createEmptyPageData());
-    		hp.insertTuple(t);		
+    	// pages were all full, make a new page here
+    	if (hpid == null || hp == null){
+    		hp = new HeapPage(new HeapPageId(getId(), numPgs+1), HeapPage.createEmptyPageData());
     	}
-    	writePage(hp);
+    	
+    	System.out.println(numPages() + " = numPages()");
+    	
+    	hp.insertTuple(t);
+    	System.out.println(numPages() + " = numPages() hahaha");
+    	
+    	// writePage(page) causes another off by 1. (2)
+    	
+    	writePage(hp); // I think this is right, but it actually does more harm than good. 
+    	
+    	System.out.println(numPages() + " = numPages()");
     	returnArray.add(hp);
-        return returnArray;
+    	System.out.println(numPages() + " = numPages()");
+    	return returnArray;
     }
 
     // see DbFile.java for javadocs
