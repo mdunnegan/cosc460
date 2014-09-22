@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class BufferPool {
 
     private static int pageSize = PAGE_SIZE;
     private int numPages;
+    private int[] timeSinceUse;
 
     /**
      * Default number of pages passed to the constructor. This is used by
@@ -160,8 +162,20 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+    	
+    	ArrayList<Page> updated = file.insertTuple(tid, t);
+    	
+    	updated.get(0).markDirty(true, tid);
+    	
+    	for (int i = 0; i < pages.size(); i++) {
+        	if (pages.get(i).getId().equals(updated.get(0).getId())) {
+        		pages.set(i, updated.get(0));
+        		return;
+        	}
+        }
+    	
     }
 
     /**
@@ -178,8 +192,16 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        
+    	int tableId = t.getRecordId().getPageId().getTableId();
+    	
+    	for (Page p : pages){
+    		if (p.getId().getTableId() == tableId){
+    			// mark dirty
+    			p.markDirty(true, tid);
+    			pages.remove(t);
+    		}
+    	}  	
     }
 
     /**
@@ -188,9 +210,9 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+        for (Page p : pages){
+        	flushPage(p.getId());
+        }
     }
 
     /**
@@ -210,8 +232,18 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        // find it
+    	Page toFlush = null;
+    	
+    	for (Page p : pages){
+    		if (p.getId().equals(pid)){
+    			toFlush = p;
+    		}
+    	}
+    	// write it to a specific table
+    	DbFile table = Database.getCatalog().getDatabaseFile(pid.getTableId());
+    	table.writePage(toFlush);
+    	toFlush.markDirty(false, new TransactionId());
     }
 
     /**
@@ -227,8 +259,12 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    	// evict page: "should call flushPage on any dirty page it evicts."
+    	
+    	// find the LRU page
+    	
+    	
+    	
     }
 
 }
