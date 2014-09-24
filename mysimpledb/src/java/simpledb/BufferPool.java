@@ -29,7 +29,6 @@ public class BufferPool {
 
     private static int pageSize = PAGE_SIZE;
     private int numPages;
-    private int[] timeSinceUse;
 
     /**
      * Default number of pages passed to the constructor. This is used by
@@ -38,6 +37,7 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
     private List<Page> pages;
+    private List<Long> timeSinceUse;
         
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -45,7 +45,8 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int np) {
-    	pages = new LinkedList<Page>();
+    	pages = new ArrayList<Page>();
+    	timeSinceUse = new ArrayList<Long>();
     	numPages = np;
     }
 
@@ -79,23 +80,27 @@ public class BufferPool {
     	// go through all the pages, find the matching on
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
+    			// if you get a page in the bufferpool, you're using it, so the timeSinceUse
+    			// should reset to 0
+    			timeSinceUse.set(i, (long) 0);
     			return pages.get(i);
     		}
     	}
     	
-    // if it wasn't in the buffer pool
+        // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
     		System.out.println(pages.size() + "pages.Size");
     		System.out.println(numPages + "numPages");
-    		
-    		throw new DbException("No more space");
-    		
+    		evictPage(); // evicts LRU page
     	}
     	
     	DbFile dbfile = Database.getCatalog().getDatabaseFile(pid.getTableId());
     	
     	HeapPage newPage = (HeapPage) dbfile.readPage(pid);
+    	
+    	// These better line up...
     	pages.add(newPage);
+    	timeSinceUse.add(System.currentTimeMillis());
     	    	
         return newPage;
     }
@@ -163,19 +168,21 @@ public class BufferPool {
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         
-    	DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+    	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
     	
-    	ArrayList<Page> updated = file.insertTuple(tid, t);
+    	// 1 element, but insert returns an array...
+    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t); // returns an arraylist of page
     	
-    	updated.get(0).markDirty(true, tid);
+    	dirtiedPage.get(0).markDirty(true, tid);
     	
-    	for (int i = 0; i < pages.size(); i++) {
-        	if (pages.get(i).getId().equals(updated.get(0).getId())) {
-        		pages.set(i, updated.get(0));
-        		return;
-        	}
-        }
-    	
+    	// update cache
+    	int i = 0;
+    	for (Page p : pages){
+    		if (p.getId() == dirtiedPage.get(0).getId()){
+    			pages.set(i, dirtiedPage.get(0));
+    		}
+    		i++;
+    	}
     }
 
     /**
@@ -195,12 +202,15 @@ public class BufferPool {
         
     	int tableId = t.getRecordId().getPageId().getTableId();
     	
+    	int i = 0;
     	for (Page p : pages){
     		if (p.getId().getTableId() == tableId){
     			// mark dirty
     			p.markDirty(true, tid);
     			pages.remove(t);
+    			timeSinceUse.set(i, (long) 0);
     		}
+    		i++;
     	}  	
     }
 
@@ -240,6 +250,7 @@ public class BufferPool {
     			toFlush = p;
     		}
     	}
+    	
     	// write it to a specific table
     	DbFile table = Database.getCatalog().getDatabaseFile(pid.getTableId());
     	table.writePage(toFlush);
@@ -259,12 +270,23 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-    	// evict page: "should call flushPage on any dirty page it evicts."
-    	
-    	// find the LRU page
-    	
-    	
-    	
-    }
 
+    	int lruIndex = 0;
+    	
+    	for (int i = 0; i < pages.size(); i++){
+    		if (timeSinceUse.get(i) > timeSinceUse.get(lruIndex)){
+    			lruIndex = i;
+    		}
+    	}
+    	
+    	// evict page at lruIndex
+    	HeapPage hp = (HeapPage) pages.get(lruIndex);
+    	
+    	try {
+    		this.flushPage(hp.getId());
+    		System.out.println("Should have flushed page");
+    	} catch (IOException e) {
+    		throw new DbException("Page wasn't evicted");
+    	}	
+    }
 }
