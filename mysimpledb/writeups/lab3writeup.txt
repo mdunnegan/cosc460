@@ -3,13 +3,52 @@ Report for Lab 3
 
 Answer the questions from the lab description here.  Questions 8 and 9 do not require answers.
 
-1.
-2.
-3.
-4.
+1. Operator.java, SeqScan.java, TupleIterator.java
+2. Aggregate.java, Delete.java, Filter.java, Insert.java, Join.java, OrderBy.java, Project.java  
+
+3. Project-project, Join-join, Select-filter, Difference-delete, Union-insert, ::: Intersection..., cross product?
+
+4. Filter extends Operator, which means that it inherits .next() and .hasNext() from it's superclass, Operator. It can use these methods. 
+
 5.
+	while iterR.has_next
+		next = iterR.next
+		if next.matches(predicate)
+			return next
+	return null
+
 6.
-7.
+	iterR1 = outer relation iterator
+	iterR2 = inner relation iterator 
+	
+	list = []
+	while iterR1.has_next
+		next1 = next
+		iterR2.rewind
+		while iterR2.has_next
+			next2 = next
+			if next1 == next2
+				list += next1
+	return list	
+
+7.	
+	t1 = null
+	t2 = null
+	
+	iterR = R.iterator()
+	iterS = S.iterator()
+	
+	while (iterR.has_next()){
+		iterR.rewind();
+		t1 = iterR.next();
+		while (iterS.has_next()){
+			t2 = iterS.next();
+			if (t1 == t2){
+				return t1;
+			}
+		}
+	}
+	return null;
 
 After you complete lab 3, please answer the following questions.  
 
