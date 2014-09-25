@@ -106,38 +106,32 @@ public class HeapFile implements DbFile {
         
     	ArrayList<Page> returnArray = new ArrayList<Page>();
     	BufferPool b = Database.getBufferPool();
-    	HeapPageId hpid = null;
     	HeapPage hp = null;
-    	int numPgs = numPages();
-    	
-    	System.out.println(numPages() + " = numPages()");
-    	
-    	for (int i = 0; i < numPgs-1; i++){
-    		if (pages[i].getNumEmptySlots() > 0){
-    			// get this magical heappage with space for us
-    			hpid = new HeapPageId(getId(), i);
-    			hp = (HeapPage) b.getPage(tid, (PageId)hpid, null);
-    			break;
+    	    	
+    	for (int i = 0; i < numPages(); i++){
+			hp = (HeapPage) b.getPage(tid, new HeapPageId(getId(), i), null);
+    		if (hp.getNumEmptySlots() > 0){
+    			hp.insertTuple(t);
+    			writePage(hp);
+    			returnArray.add(hp);
+    			return returnArray;
     		}
     	}
     	
-    	// pages were all full, make a new page here
-    	if (hpid == null || hp == null){
-    		hp = new HeapPage(new HeapPageId(getId(), numPgs+1), HeapPage.createEmptyPageData());
-    	}
+    	// pages were all full, doing it here
+    	hp = new HeapPage(new HeapPageId(getId(), numPages()), HeapPage.createEmptyPageData());    	
+    	//hp.insertTuple(t);    	
+    	//writePage(hp);
+    	    	
+    	OutputStream output = new BufferedOutputStream(new FileOutputStream(file, true), BufferPool.getPageSize());
     	
-    	System.out.println(numPages() + " = numPages()");
-    	
+    	output.write(hp.getPageData(), 0, BufferPool.getPageSize());
+    	    	
+    	output.flush();
+    	output.close();
     	hp.insertTuple(t);
-    	System.out.println(numPages() + " = numPages() hahaha");
     	
-    	// writePage(page) causes another off by 1. (2)
-    	
-    	writePage(hp); // I think this is right, but it actually does more harm than good. 
-    	
-    	System.out.println(numPages() + " = numPages()");
     	returnArray.add(hp);
-    	System.out.println(numPages() + " = numPages()");
     	return returnArray;
     }
 
@@ -161,13 +155,11 @@ public class HeapFile implements DbFile {
     	return new HeapFileIterator(this, tid);
     }
     
-    // Iterates through tuples
 	class HeapFileIterator implements DbFileIterator {
 
 		Iterator<Tuple> tuples;
 		private HeapFile hf;
 		private int pageNum;
-		private int numPages;
 		private TransactionId transactionId;
 		private boolean iteratorOpen;
 		
@@ -175,7 +167,6 @@ public class HeapFile implements DbFile {
 			hf = hpFile;
 			transactionId = tid;
 			pageNum = 0;
-			numPages = hf.numPages();
 			iteratorOpen = false;
 		}
 		
@@ -187,8 +178,7 @@ public class HeapFile implements DbFile {
 			if (tuples.hasNext()){
 				return true;
 			}
-			//make a new page
-			//see if it has tuples
+			//make a new page see if it has tuples
 			pageNum++;
 			if (pageNum < numPages()){
 				HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), pageNum), Permissions.READ_ONLY);
@@ -219,7 +209,6 @@ public class HeapFile implements DbFile {
 				throw new TransactionAbortedException();	
 			}
 			
-			//HeapPageId firstPageId = new HeapPageId(hf.getId(), 0);
 			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), 0), Permissions.READ_ONLY);
 			tuples = firstPage.iterator();
 			iteratorOpen = true;

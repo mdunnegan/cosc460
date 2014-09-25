@@ -26,7 +26,7 @@ public class SeqScan implements DbIterator {
      *                   tupleDesc should have fields with name tableAlias.fieldName
      *                   (note: this class is not responsible for handling a case where
      *                   tableAlias or fieldName are null. It shouldn't crash if they
-     *                   are, but the resulting name can be null.fieldName,
+     *                   ae, but the resulting name can be null.fieldName,
      *                   tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {

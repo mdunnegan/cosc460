@@ -132,7 +132,7 @@ public class Catalog {
     	
     	// wont work
     	//List<Integer> ids = Arrays.asList(tableHash.values().getId()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
-    	List ids = new ArrayList(tableHash.size());
+    	List<Integer> ids = new ArrayList<Integer>(tableHash.size());
     	
     	// iterate through these
     	for (DbFile dbfile : tableHash.values()){

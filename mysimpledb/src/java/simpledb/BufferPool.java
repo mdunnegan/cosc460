@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.io.*;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -89,8 +88,6 @@ public class BufferPool {
     	
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
-    		System.out.println(pages.size() + "pages.Size");
-    		System.out.println(numPages + "numPages");
     		evictPage(); // evicts LRU page
     	}
     	
@@ -171,11 +168,11 @@ public class BufferPool {
     	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
     	
     	// 1 element, but insert returns an array...
-    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t); // returns an arraylist of page
+    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t);
     	
     	dirtiedPage.get(0).markDirty(true, tid);
     	
-    	// update cache
+    	// updates the pool
     	int i = 0;
     	for (Page p : pages){
     		if (p.getId() == dirtiedPage.get(0).getId()){
@@ -284,9 +281,10 @@ public class BufferPool {
     	
     	try {
     		this.flushPage(hp.getId());
+    		pages.remove(hp);
     		System.out.println("Should have flushed page");
     	} catch (IOException e) {
-    		throw new DbException("Page wasn't evicted");
+    		throw new DbException("Page wasn't flushed or evicted");
     	}	
     }
 }

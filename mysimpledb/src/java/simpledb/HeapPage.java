@@ -84,7 +84,7 @@ public class HeapPage implements Page {
      * each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {
-        return (int) Math.ceil(numSlots/8);
+        return (int) Math.ceil(numSlots/8.0);
     }
 
     /**
@@ -268,7 +268,6 @@ public class HeapPage implements Page {
      *                     is mismatch.
      */
     public void insertTuple(Tuple t) throws DbException {
-    	// off by 1 error
     	if (getNumEmptySlots() == 0){
     		throw new DbException("This page is full");
     	}
@@ -285,12 +284,7 @@ public class HeapPage implements Page {
  	    // not updating the number of free slots.
     	// 484 Free -> add tuple -> 484 free
     	// mark slot used?
-    	System.out.println(pageNo + "pageNo");
-    	System.out.println(isSlotUsed(pageNo));
-    	System.out.println(tuples);
     	markSlotUsed(pageNo, true);
-    	
-    	
     }
 
     /**
