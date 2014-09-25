@@ -120,16 +120,14 @@ public class HeapFile implements DbFile {
     	
     	// pages were all full, doing it here
     	hp = new HeapPage(new HeapPageId(getId(), numPages()), HeapPage.createEmptyPageData());    	
-    	//hp.insertTuple(t);    	
-    	//writePage(hp);
+    	hp.insertTuple(t);    	
     	    	
-    	OutputStream output = new BufferedOutputStream(new FileOutputStream(file, true), BufferPool.getPageSize());
-    	
+    	OutputStream output = new BufferedOutputStream(new FileOutputStream(file, true), BufferPool.getPageSize());	
     	output.write(hp.getPageData(), 0, BufferPool.getPageSize());
-    	    	
+    	writePage(hp);
+    	
     	output.flush();
     	output.close();
-    	hp.insertTuple(t);
     	
     	returnArray.add(hp);
     	return returnArray;
