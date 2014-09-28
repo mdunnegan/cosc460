@@ -10,6 +10,7 @@ public class Filter extends Operator {
     private static final long serialVersionUID = 1L;
     private Predicate p;
     private DbIterator child;
+    private boolean open;
     
     /**
      * Constructor accepts a predicate to apply and a child operator to read
@@ -33,14 +34,21 @@ public class Filter extends Operator {
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
+    	open = true;
         child.open();
+        super.open();
     }
 
     public void close() {
+    	open = false;
         child.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
+    	if (!open){
+    		throw new DbException("Iterator closed");
+    	}
         child.rewind();
     }
 
@@ -56,6 +64,10 @@ public class Filter extends Operator {
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
         
+    	if (!open){
+    		throw new DbException("Iterator closed");
+    	}
+    	
         while(child.hasNext()){
         	Tuple t = child.next();
         	if (p.filter(t)){
@@ -68,12 +80,13 @@ public class Filter extends Operator {
     @Override
     public DbIterator[] getChildren() {
         // return an iterator for each child?
-        return null;
+    	DbIterator[] childIterator = {child};
+        return childIterator;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        child = children[0];
     }
 
 }

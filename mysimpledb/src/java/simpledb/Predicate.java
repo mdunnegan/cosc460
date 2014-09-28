@@ -82,7 +82,7 @@ public class Predicate implements Serializable {
      */
     public Field getOperand() {
         return operand;
-    }
+    } 
 
     /**
      * Compares the field number of t specified in the constructor to the
