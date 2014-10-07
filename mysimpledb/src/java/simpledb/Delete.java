@@ -9,7 +9,12 @@ import java.io.IOException;
 public class Delete extends Operator {
 
     private static final long serialVersionUID = 1L;
-
+    
+    TransactionId trid;
+    DbIterator child;
+    boolean open;
+    int numTimesFetchNextCalled = 0;
+    
     /**
      * Constructor specifying the transaction that this delete belongs to as
      * well as the child to read from.
@@ -18,24 +23,31 @@ public class Delete extends Operator {
      * @param child The child operator from which to read tuples for deletion
      */
     public Delete(TransactionId t, DbIterator child) {
-        // some code goes here
+    	this.trid = t;
+        this.child = child;
+        this.open = false;        
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+    	Type typ[] = {Type.INT_TYPE};
+    	String title[] = {"Number of Tuples Deleted"};
+    	TupleDesc td = new TupleDesc(typ, title);
+    	return td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+    	super.open();
+        child.open();
+        open = true;
     }
 
     public void close() {
-        // some code goes here
+        child.close();
+        open = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.rewind();
     }
 
     /**
@@ -48,8 +60,41 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        
+    	if (numTimesFetchNextCalled > 0){
+    		return null;
+    	}
+    	numTimesFetchNextCalled++;
+    	
+    	BufferPool b = Database.getBufferPool();
+    	Tuple t = new Tuple(getTupleDesc());
+    	int numTuplesDeleted = 0;
+    	
+    	while (child.hasNext()){
+    		
+    		t = child.next();
+    		
+    		try {
+    			//System.out.println("before " + b.getNumberOfPages());
+				b.deleteTuple(trid, t);		
+				//System.out.println("after: " + b.getNumberOfPages());
+				numTuplesDeleted++;
+			} catch (IOException e) {
+				throw new TransactionAbortedException();
+			}
+    	}
+    	
+    	// this exact thing gets called in getTupleDesc()
+    	Type typ[] = {Type.INT_TYPE};
+    	String title[] = {"Number of Tuples Inserted"};
+    	TupleDesc td = new TupleDesc(typ, title);
+    	// the following is not called in getTupleDesc()
+ 
+    	Tuple tup = new Tuple(td);
+    	IntField f = new IntField(numTuplesDeleted);    	
+    	tup.setField(0, f);
+
+        return tup;    	
     }
 
     @Override

@@ -1,6 +1,9 @@
 package simpledb;
 
 import java.io.IOException;
+import java.util.ArrayList;
+
+import simpledb.Predicate.Op;
 
 public class Lab3Main {
 
@@ -83,26 +86,71 @@ public class Lab3Main {
         WHERE S.sid = T.tid
         */
         
+//        TransactionId tid2 = new TransactionId();
+//        SeqScan scanStudents2 = new SeqScan(tid2, Database.getCatalog().getTableId("students"));
+//        SeqScan scanTakes = new SeqScan(tid2, Database.getCatalog().getTableId("takes"));
+//        
+//        JoinPredicate jp2 = new JoinPredicate(scanStudents2.getTupleDesc().fieldNameToIndex("students.sid"), 
+//        									Predicate.Op.GREATER_THAN,
+//        									scanTakes.getTupleDesc().fieldNameToIndex("takes.sid"));
+//        
+//        Join takes = new Join(jp2, scanStudents2, scanTakes);
+//        
+//        System.out.println("Query results for students taking courses:");
+//        scanStudents2.open();
+//        scanTakes.open();
+//        takes.open();
+//        
+//        while (takes.hasNext()){
+//        	Tuple t = takes.next();
+//        	System.out.println(t.toString());
+//        }
+//        takes.close();
+        
+        /**
+         * SELECT S.name
+		   FROM Students S, Takes T, Profs P
+		   WHERE S.sid = T.cid AND
+	       T.cid = P.favoriteCourse AND
+	       P.name = "hay"
+         */
+        
         TransactionId tid2 = new TransactionId();
-        SeqScan scanStudents2 = new SeqScan(tid2, Database.getCatalog().getTableId("students"));
+        SeqScan scanStudents = new SeqScan(tid2, Database.getCatalog().getTableId("students"));
         SeqScan scanTakes = new SeqScan(tid2, Database.getCatalog().getTableId("takes"));
+        SeqScan scanProfs = new SeqScan(tid2, Database.getCatalog().getTableId("profs"));
         
-        JoinPredicate jp2 = new JoinPredicate(scanStudents2.getTupleDesc().fieldNameToIndex("students.sid"), 
-        									Predicate.Op.GREATER_THAN,
-        									scanTakes.getTupleDesc().fieldNameToIndex("takes.sid"));
+        JoinPredicate jp1 = new JoinPredicate(scanStudents.getTupleDesc().fieldNameToIndex("students.sid"), 
+      							Predicate.Op.EQUALS,
+      							scanTakes.getTupleDesc().fieldNameToIndex("takes.cid"));
         
-        Join takes = new Join(jp2, scanStudents2, scanTakes);
+        JoinPredicate jp2 = new JoinPredicate(scanTakes.getTupleDesc().fieldNameToIndex("takes.cid"), 
+								Predicate.Op.EQUALS,
+								scanProfs.getTupleDesc().fieldNameToIndex("profs.favoriteCourse"));
         
-        System.out.println("Query results for students taking courses:");
-        scanStudents2.open();
-        scanTakes.open();
-        takes.open();
+        StringField hay = new StringField("hay", Type.STRING_LEN);  
         
-        while (takes.hasNext()){
-        	Tuple t = takes.next();
+        Predicate p = new Predicate(1, Op.EQUALS, hay); // avoiding long lines of code
+        Filter hayFilter = new Filter(p, scanProfs);
+        
+        Join j1 = new Join(jp1, scanTakes, hayFilter);
+        Join j2 = new Join(jp2, scanStudents, j1);
+        
+        ArrayList<Integer> projectList = new ArrayList<Integer>();
+        ArrayList<Type> typeList = new ArrayList<Type>();
+        
+        projectList.add(1);
+        typeList.add(Type.STRING_TYPE);
+        
+        Project sName = new Project(projectList, typeList, j2);
+        
+        System.out.println("Query results:");
+        
+        sName.open();
+        while (sName.hasNext()){
+        	Tuple t = sName.next();
         	System.out.println(t.toString());
         }
-        takes.close();
 
     }
 
