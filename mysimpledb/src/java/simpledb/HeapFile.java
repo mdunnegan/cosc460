@@ -15,7 +15,6 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
-	private HeapPage[] pages;
 	private File file;
 	private TupleDesc tupleDesc;
     /**
@@ -60,7 +59,6 @@ public class HeapFile implements DbFile {
     }
 
     // see DbFile.java for javadocs
-    // not passing unit test
     public Page readPage(PageId pid) throws IllegalArgumentException {
     	
     	int pageNumber = pid.pageNumber();
@@ -144,6 +142,7 @@ public class HeapFile implements DbFile {
     	Page p = b.getPage(tid, rid.getPageId(), null);
     	HeapPage hp = (HeapPage) p;
     	
+    	System.out.println("Calling HeapPage delete tuple from HF");
     	hp.deleteTuple(t);
     	return returnArray; 
     }
@@ -171,16 +170,17 @@ public class HeapFile implements DbFile {
 		@Override
 		public boolean hasNext() throws TransactionAbortedException, DbException {
 			if (!iteratorOpen){
-				return false;
+				return false; 
+				
+				// ERROR HERE causing tests to pass
+				//throw new TransactionAbortedException();
 			}
 			if (tuples.hasNext()){
 				return true;
 			}
-			//make a new page see if it has tuples
 			pageNum++;
 			if (pageNum < numPages()){
 				HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), pageNum), Permissions.READ_ONLY);
-				// iterator
 				tuples = firstPage.iterator();
 				if (tuples.hasNext()){
 					return true;
@@ -202,12 +202,7 @@ public class HeapFile implements DbFile {
 
 		@Override
 		public void open() throws DbException, TransactionAbortedException {
-			if (iteratorOpen){
-				System.err.println("Iterator is already open");
-				throw new TransactionAbortedException();	
-			}
-			
-			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), 0), Permissions.READ_ONLY);
+			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), 0), Permissions.READ_ONLY);			
 			tuples = firstPage.iterator();
 			iteratorOpen = true;
 			pageNum = 0;
@@ -216,7 +211,6 @@ public class HeapFile implements DbFile {
 		@Override
 		public void rewind() throws DbException, TransactionAbortedException {
 			// go to beginning of the whole heapfile
-			//HeapPageId firstPageId = new HeapPageId(hf.getId(), 0);
 			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, new HeapPageId(hf.getId(), 0), Permissions.READ_ONLY);
 			pageNum = 0;
 			tuples = firstPage.iterator();

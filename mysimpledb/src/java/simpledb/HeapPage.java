@@ -256,6 +256,7 @@ public class HeapPage implements Page {
     	if (isSlotUsed(tupleNum) == false){
     		throw new DbException("Tuple was already empty");
     	}
+    	System.out.println("Effectively deleting a tuple here");
     	markSlotUsed(tupleNum, false);
     }
 

@@ -2,10 +2,10 @@ package simpledb;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+//import java.util.HashMap;
+//import java.util.LinkedList;
+//import java.util.Map;
+//import java.util.concurrent.ConcurrentHashMap;
 
 import java.util.List;
 
@@ -49,6 +49,10 @@ public class BufferPool {
     	numPages = np;
     }
 
+    public int getNumberOfPages(){
+    	return pages.size();
+    }
+    
     public static int getPageSize() {
         return pageSize;
     }
@@ -166,6 +170,7 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         
     	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
+    	HeapFile hf = (HeapFile) f;
     	
     	// 1 element, but insert returns an array...
     	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t);
@@ -173,13 +178,15 @@ public class BufferPool {
     	dirtiedPage.get(0).markDirty(true, tid);
     	
     	// updates the pool
-    	int i = 0;
-    	for (Page p : pages){
-    		if (p.getId() == dirtiedPage.get(0).getId()){
-    			pages.set(i, dirtiedPage.get(0));
-    		}
-    		i++;
-    	}
+    	// Should this be heapfile insert?
+//    	int i = 0;
+//    	for (Page p : pages){
+//    		if (p.getId() == dirtiedPage.get(0).getId()){
+//    			//pages.set(i, dirtiedPage.get(0));
+//    		}
+//    		i++;
+//    	}
+    	hf.deleteTuple(tid, t);
     }
 
     /**
@@ -198,16 +205,29 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         
     	int tableId = t.getRecordId().getPageId().getTableId();
+    	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
     	
-    	int i = 0;
+    	HeapFile hf = (HeapFile) f;
+    	System.out.println("Calling HeapFile delete tuple from BP");
+    	hf.deleteTuple(tid, t);
+    	
+    	//int i = 0;
     	for (Page p : pages){
-    		if (p.getId().getTableId() == tableId){
+    		
+    		if (p.getId().getTableId() == tableId){   			
+    			
+    			// Heapfile.deleteTuple
+    			
     			// mark dirty
+    			//hf.deleteTuple(tid, t);
     			p.markDirty(true, tid);
-    			pages.remove(t);
-    			timeSinceUse.set(i, (long) 0);
+//    			//HeapPage hp = (HeapPage) p;
+//    			//hp.deleteTuple(t);
+//    			
+//    			//hf.deleteTuple(tid, t);
+//    			timeSinceUse.set(i, (long) 0);
     		}
-    		i++;
+//    		i++;
     	}  	
     }
 
