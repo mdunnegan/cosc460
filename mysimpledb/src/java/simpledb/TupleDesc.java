@@ -118,8 +118,11 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
-    	for (int i=0;i<schema.length;i++) {
+    	//System.out.println(name);
+    	//System.out.println("above should match below");
+    	for (int i = 0; i < schema.length; i++) {
     		// calling .equals on something null is causing the error
+    		//System.out.println(schema[i].fieldName);
      		if (schema[i].fieldName == null){
     			continue;
     		}

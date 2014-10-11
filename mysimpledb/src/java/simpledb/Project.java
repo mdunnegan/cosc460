@@ -25,8 +25,7 @@ public class Project extends Operator {
         this(fieldList, typesList.toArray(new Type[]{}), child);
     }
 
-    public Project(ArrayList<Integer> fieldList, Type[] types,
-                   DbIterator child) {
+    public Project(ArrayList<Integer> fieldList, Type[] types, DbIterator child) {
         this.child = child;
         outFieldIds = fieldList;
         String[] fieldAr = new String[fieldList.size()];

@@ -20,7 +20,6 @@ public class HeapPage implements Page {
     boolean isDirty;
     TransactionId dirtyId;
     
-
     byte[] oldData;
     private final Byte oldDataLock = new Byte((byte) 0);
 
@@ -371,29 +370,42 @@ public class HeapPage implements Page {
      * an UnsupportedOperationException)
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
+    
     public Iterator<Tuple> iterator() {
-        // some code goes here
-    	// call iterator on a list of non-empty tuples
+       return new HeapPageIterator();
+    }
+    
+    public class HeapPageIterator implements Iterator<Tuple> {
+
+    	public int tupleIndex = 0;
+    	//public boolean iteratorOpen;
     	
-    	/*
-    	 * Idea 1: Go through all the tuples, find the ones that aren't empty by using the 
-    	 * 'toString' method. Add them to a list
-    	 * 
-    	 * Idea 2: Go through the header file. Find out if the tuple is legit. If it is, 
-    	 * grab it and add it to a list
-    	 * 
-    	 */
-    	
-    	// idea 1:
-    	List<Tuple> tuplesWithData = new ArrayList<Tuple>();
-    	for (Tuple t : tuples){
-    		if (t != null){
-    			tuplesWithData.add(t);
+    	public boolean hasNext() {
+    		for (int i = tupleIndex; i < numSlots; i++) {
+    			if (isSlotUsed(i)) {
+    				tupleIndex = i;
+    				return true;
+    			}
     		}
+    		return false;
     	}
     	
-        return tuplesWithData.iterator();
-    }
+    	public Tuple next() {
+//    		if (!iteratorOpen){
+//    			throw new RuntimeException("Iterator not open");
+//    		}
+    		if (!hasNext()){
+    			throw new RuntimeException("No next tuple");
+    		}
+    		Tuple next = tuples[tupleIndex++];
+    		return next;
+    	}
 
+		@Override
+		public void remove() {
+			// stub
+		}
+    }   	
+    
 }
 
