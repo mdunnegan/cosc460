@@ -120,21 +120,26 @@ public class Lab3Main {
         SeqScan scanTakes = new SeqScan(tid2, Database.getCatalog().getTableId("takes"));
         SeqScan scanProfs = new SeqScan(tid2, Database.getCatalog().getTableId("profs"));
         
+        
+        // jp for Student takes
         JoinPredicate jp1 = new JoinPredicate(scanStudents.getTupleDesc().fieldNameToIndex("students.sid"), 
       							Predicate.Op.EQUALS,
-      							scanTakes.getTupleDesc().fieldNameToIndex("takes.cid"));
-        
+      							scanTakes.getTupleDesc().fieldNameToIndex("takes.sid"));
+               
+//      Jp for favoriteCourse takes
         JoinPredicate jp2 = new JoinPredicate(scanTakes.getTupleDesc().fieldNameToIndex("takes.cid"), 
 								Predicate.Op.EQUALS,
 								scanProfs.getTupleDesc().fieldNameToIndex("profs.favoriteCourse"));
         
-        StringField hay = new StringField("hay", Type.STRING_LEN);  
+        StringField hay = new StringField("hay", Type.STRING_LEN);
         
-        Predicate p = new Predicate(1, Op.EQUALS, hay); // avoiding long lines of code
+        Predicate p = new Predicate(1, Op.EQUALS, hay);
+        
+        // Profs named hay
         Filter hayFilter = new Filter(p, scanProfs);
         
-        Join j1 = new Join(jp1, scanTakes, hayFilter);
-        Join j2 = new Join(jp2, scanStudents, j1);
+        Join j1 = new Join(jp2, scanTakes, hayFilter);
+        Join j2 = new Join(jp1, scanStudents, j1);
         
         ArrayList<Integer> projectList = new ArrayList<Integer>();
         ArrayList<Type> typeList = new ArrayList<Type>();

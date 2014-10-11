@@ -118,11 +118,7 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
-    	//System.out.println(name);
-    	//System.out.println("above should match below");
     	for (int i = 0; i < schema.length; i++) {
-    		// calling .equals on something null is causing the error
-    		//System.out.println(schema[i].fieldName);
      		if (schema[i].fieldName == null){
     			continue;
     		}
@@ -130,7 +126,6 @@ public class TupleDesc implements Serializable {
         		return i;
         	}
         }
-    	// It's catching an IndexOutOfBoundsException. No idea why. 
         throw new NoSuchElementException("Tuple was not found");
     }
 
