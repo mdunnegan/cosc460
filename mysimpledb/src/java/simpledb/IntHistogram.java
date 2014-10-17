@@ -1,10 +1,18 @@
 package simpledb;
 
+import simpledb.Predicate.Op;
+
 /**
  * A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
-
+	
+	int[] histogram;
+	int bucketWidth;
+	int totalNumValues; 
+	int buckets;
+	int min;
+	int max;
     /**
      * Create a new IntHistogram.
      * <p/>
@@ -22,8 +30,13 @@ public class IntHistogram {
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-        // some code goes here
-    }
+        this.buckets = buckets;
+        this.min = min;
+        this.max = max;
+        this.histogram = new int[buckets];
+        this.bucketWidth = (max - min) / buckets;
+        this.totalNumValues = 0;
+     }
 
     /**
      * Add a value to the set of values that you are keeping a histogram of.
@@ -31,7 +44,12 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-        // some code goes here
+        if (v < min || v > max){
+        	throw new RuntimeException("Value too large");
+        }
+        
+        histogram[(v - min)/buckets]++;
+        totalNumValues++;
     }
 
     /**
@@ -45,16 +63,57 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
-        // some code goes here
+    	
+    	// the selectivity of the expression is roughly (h / w) / ntups for EQ
+    	
+    	// h = nTups
+    	// w = bucketWidth
+    	// n = numTups
+    
+    	int vBucket = histogram[(v - min)/buckets];
+    	
+    	double EQ = (histogram[vBucket] / bucketWidth) / totalNumValues;
+    	
+    	// Greater Than
+    	int bRightGT = min + (vBucket*bucketWidth);
+    	int remainingBucketSelectivityGT = 0;
+    	for (int i = 0; i < histogram.length - vBucket; i++){
+    		remainingBucketSelectivityGT += histogram[vBucket+i] / totalNumValues;
+    	} 	
+    	double GT = (bRightGT - 1 - v) + remainingBucketSelectivityGT;
+    	//
+    
+    	// Less Than
+    	int bRightLT = min + (vBucket*bucketWidth);
+    	int remainingBucketSelectivityLT = 0;
+    	for (int i = vBucket; i < min; i--){
+    		remainingBucketSelectivityLT += histogram[vBucket+i] / totalNumValues;
+    	} 	
+    	double LT = (bRightLT - 1 - v) + remainingBucketSelectivityLT;
+    	//	
+    		
+    	if (op.equals(Op.EQUALS) || op.equals(Op.LIKE)){
+    		return EQ;
+    	} else if (op.equals(Op.GREATER_THAN)){
+    		return GT;
+    	} else if (op.equals(Op.LESS_THAN)){
+    		return LT;
+    	} else if (op.equals(Op.GREATER_THAN_OR_EQ)){
+    		return GT+EQ;
+    	} else if (op.equals(Op.LESS_THAN_OR_EQ)){
+    		return LT+EQ;	
+    	} else if (op.equals(Op.NOT_EQUALS)){ 
+    		return totalNumValues-EQ;
+    	}
+    	
         return -1.0;
     }
 
     /**
      * @return A string describing this histogram, for debugging purposes
      */
-    public String toString() {
-        // some code goes here
-        return null;
+    public String toString() {  
+    	String myStr = "histogram: " + histogram.toString() + "\n bucket width: " + bucketWidth + "\n max: " + max + "\n min: " + min;
+        return myStr;
     }
 }
