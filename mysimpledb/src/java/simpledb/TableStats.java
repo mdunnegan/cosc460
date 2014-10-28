@@ -3,6 +3,8 @@ package simpledb;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import simpledb.Predicate.Op;
+
 /**
  * TableStats represents statistics (e.g., histograms) about base tables in a
  * query.
@@ -10,6 +12,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * This class is not needed in implementing lab1|lab2|lab3.                                                   // cosc460
  */
 public class TableStats {
+	
+	private DbFile f;
+	private ArrayList<ArrayList<Field>> allFields;
+	private ArrayList<Field> minValues;
+	private ArrayList<Field> maxValues;
+	private ArrayList<Integer> distinctValues;
+	private TupleDesc td;
+	private int numPages;
+	private int numTups;
 
     private static final ConcurrentHashMap<String, TableStats> statsMap = new ConcurrentHashMap<String, TableStats>();
 
@@ -80,6 +91,95 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+    	
+    	f = Database.getCatalog().getDatabaseFile(tableid);
+    	TransactionId tid = new TransactionId();
+    	DbFileIterator iterator = f.iterator(tid);
+    	
+    	td = f.getTupleDesc();
+    	
+    	// Make an arraylist for each column
+    	allFields = new ArrayList<ArrayList<Field>>();
+    	
+    	Tuple t;
+    	int tupNum = 0;
+    	try {
+    		iterator.open();
+			while (iterator.hasNext()){ // for each tuple
+				t = iterator.next();
+				
+				for (int i = 0; i < td.getSize(); i++){
+					allFields.get(tupNum).set(i, t.getField(i));
+					
+				}
+				tupNum++;
+			}
+		} catch (DbException | TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	numTups = tupNum;
+    	
+    	try {
+			iterator.rewind();
+		} catch (DbException | TransactionAbortedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+    	
+    	minValues = new ArrayList<Field>();
+    	maxValues = new ArrayList<Field>();
+    	
+    	    	
+    	// Initialize min and max
+    	minValues.add(allFields.get(0).get(0));
+    	maxValues.add(allFields.get(0).get(0));
+    	
+    	// for each column, get the max and min values
+    	// Also keep track of the number of distinct values
+    	tupNum = 0;
+    	try {
+    		for (int j = 0; j < td.getSize(); j++){ // for each column
+    			while (iterator.hasNext()){ // for each tuple
+    				t = iterator.next();
+    				if (allFields.get(j).get(tupNum).compare(Op.GREATER_THAN, maxValues.get(j))){
+    					maxValues.set(j, allFields.get(j).get(tupNum));
+    				}
+    				if (allFields.get(j).get(tupNum).compare(Op.LESS_THAN, minValues.get(j))){
+    					minValues.set(j, allFields.get(j).get(tupNum));
+    				}	
+    			    					
+    				tupNum++;	
+    			}
+			}
+			
+		} catch (DbException | TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	distinctValues = new ArrayList<Integer>();
+    	for (int i = 0; i < td.getSize(); i++){
+    		distinctValues.set(i, numTups);
+    	}
+    	
+    	try {
+    		for (int j = 0; j < td.getSize(); j++){ // for each column
+    			while (iterator.hasNext()){ // for each tuple
+    				t = iterator.next();
+    				for (int i = 0; i < td.getSize(); i++){
+    					if (allFields.get(j).get(tupNum) == allFields.get(1).get(tupNum)){
+    						distinctValues.set(distinctValues.get(j), distinctValues.get(j)-1);
+    					}
+    				}
+    			}
+			}
+			
+		} catch (DbException | TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 
     /**
@@ -95,8 +195,8 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-        // some code goes here
-        return 0;
+        int numPages = ((HeapFile) f).numPages();
+        return numPages * TableStats.IOCOSTPERPAGE;
     }
 
     /**
@@ -108,8 +208,10 @@ public class TableStats {
      * selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-        // some code goes here
-        return 0;
+    	if(selectivityFactor > 0 && selectivityFactor < (1/numTups)){
+    		return 1;    		
+    	}
+    	return (int) Math.ceil(numTups * selectivityFactor);
     }
 
     /**
@@ -125,9 +227,7 @@ public class TableStats {
      * @return The number of distinct values of the field.
      */
     public int numDistinctValues(int field) {
-        // some code goes here
-        throw new UnsupportedOperationException("implement me");
-
+       return distinctValues.get(field);
     }
 
     /**
@@ -141,8 +241,17 @@ public class TableStats {
      * predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-        // some code goes here
-        return 1.0;
+            	
+    	if (constant.getType() == Type.INT_TYPE){
+    		IntField c = (IntField) constant;
+    		IntField max = (IntField) maxValues.get(field);
+    		IntField min = (IntField) minValues.get(field);	
+    		IntHistogram h = new IntHistogram(NUM_HIST_BINS, min.getValue(), max.getValue());
+    		return h.estimateSelectivity(op, c.getValue());
+    	} else {
+    		StringField c = (StringField) constant;
+    		StringHistogram h = new StringHistogram(NUM_HIST_BINS);
+    		return h.estimateSelectivity(op, c.getValue());
+    	} 
     }
-
 }

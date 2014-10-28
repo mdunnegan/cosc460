@@ -30,11 +30,11 @@ public class IntHistogram {
      * @param min     The minimum integer value that will ever be passed to this class for histogramming
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
-    public IntHistogram(int buckets, int min, int max) {
+    public IntHistogram(int buckets, int min, int max) {     	
         this.min = min;
         this.max = max;
         this.totalNumValues = 0;
-        this.bucketWidth = buckets / (max-min+1);
+        this.bucketWidth = (int) Math.ceil((double)buckets / (max-min+1));
         
         if ((max - min + 1) < buckets){ 
         	// resize
@@ -45,7 +45,7 @@ public class IntHistogram {
         	// no resize necessary
         	numBuckets = buckets;
         	lastBucketWidth = max - (min + (bucketWidth * (numBuckets-1))) + 1;
-        }
+        }     
         this.histogram = new int[numBuckets+1];
      }
 
@@ -56,11 +56,10 @@ public class IntHistogram {
      */
     public void addValue(int v) {
         if (v < min || v > max){
-        	throw new RuntimeException("Value too large");
-        }                
-        //histogram[(v - min)/bucketWidth]++;
+        	throw new RuntimeException("Value out of range");
+        }
         
-        if ((v-min)/bucketWidth < histogram.length-1) {
+        if ((v-min)/bucketWidth < histogram.length) {
         	histogram[(v-min)/bucketWidth]++;
         } else {
         	histogram[histogram.length-1]++;
@@ -81,17 +80,28 @@ public class IntHistogram {
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
     	    	
-    	if (v < min){
+    	if (v < min && (op.equals(Op.GREATER_THAN_OR_EQ) || op.equals(Op.GREATER_THAN))){
     		return 1;
     	}
-    	if (v > max){
+    	if (v > max && (op.equals(Op.GREATER_THAN_OR_EQ) || op.equals(Op.GREATER_THAN))){
     		return 0;
     	}
+    	if (v < min && (op.equals(Op.LESS_THAN_OR_EQ) || op.equals(Op.LESS_THAN))){
+    		return 0;
+    	}
+    	if (v > max && (op.equals(Op.LESS_THAN_OR_EQ) || op.equals(Op.LESS_THAN))){
+    		return 1;
+    	}
+    	
+    	// Negative range test params
+    	//(10, -60, -10)
+    	// adds -60 thru -10
+    	
     	int vBucket = (v - min)/bucketWidth;
-    	System.out.println(vBucket);
-    	double EQ = (histogram[vBucket] / bucketWidth) / totalNumValues;
-      	
-    	// Greater Than    	
+    	//System.out.println("vBucket: " + vBucket);
+    	double EQ = (histogram[vBucket] / (double) bucketWidth) / totalNumValues;
+    	      	
+    	// Greater Than
     	int bRightGT;
     	if (vBucket == histogram.length - 1){
     		bRightGT = max + 1;
@@ -102,10 +112,9 @@ public class IntHistogram {
     	double b_f = histogram[vBucket] / totalNumValues;
     	double b_part = (bRightGT - 1 - v) / bucketWidth;
     	double fractionalSelectivityGT = b_f * b_part;
-    	
     	double totalBucketSelectivity = fractionalSelectivityGT;
     	
-    	for (int i = vBucket + 1; i < histogram.length; i++){
+    	for (int i = vBucket+1; i < histogram.length; i++){
     		// if it's the last bucket
     		if (i == histogram.length - 1){
     			totalBucketSelectivity += (histogram[i] / lastBucketWidth) / (double) totalNumValues;
@@ -113,50 +122,33 @@ public class IntHistogram {
     			totalBucketSelectivity += (histogram[i] / bucketWidth) / (double) totalNumValues;
     		}
     	}
-    	
     	double GT = totalBucketSelectivity;
-    	//
-    
+    	// end Greater Than
     	// Less Than
-    	int bLeftGT;
-    	if (vBucket == histogram.length - 1){
-    		bLeftGT = min + ((vBucket)*bucketWidth);
+    	int bLeftLT;
+    	if (vBucket == histogram.length - 1){ // last bucket
+    		bLeftLT = max;
     	} else {
-    		bLeftGT = max+1;
+    		bLeftLT = min + ((vBucket-1)*bucketWidth);
     	}
     	
     	double b_f2 = histogram[vBucket] / totalNumValues;
-    	double b_part2 = (bLeftGT - 1 - v) / bucketWidth;
+    	double b_part2 = (bLeftLT - 1 - v) / bucketWidth;
     	double fractionalSelectivityLT = b_f2 * b_part2;
-    	
     	double totalBucketSelectivity2 = fractionalSelectivityLT;
     	
-    	for (int i = vBucket; i > 0; i--){
+    	for (int i = vBucket-1; i >= 0; i--){
     		// if it's the last bucket
     		if (i == histogram.length - 1){
-    			totalBucketSelectivity += (histogram[i] / lastBucketWidth) / (double) totalNumValues;
+    			totalBucketSelectivity2 += (histogram[i] / lastBucketWidth) / (double) totalNumValues;
     		} else {
-    			totalBucketSelectivity += (histogram[i] / bucketWidth) / (double) totalNumValues;
+    			totalBucketSelectivity2 += (histogram[i] / bucketWidth) / (double) totalNumValues;
     		}
     	}
     	
     	double LT = totalBucketSelectivity2;
-    	
-//    	int remainingBucketSelectivityLT = 0;
-//    	for (int i = vBucket; i > 0; i--){
-//    		remainingBucketSelectivityLT += histogram[vBucket] / totalNumValues;
-//    	} 	
-//    	double LT = (v - bLeftLT) + remainingBucketSelectivityLT;
-    	//	
-    		
+       		
     	if (op.equals(Op.EQUALS) || op.equals(Op.LIKE)){
-    		
-    		System.out.println("vBucket: " + vBucket);
-    		System.out.println("histogram[bucketV]: " + histogram[vBucket]);
-    		System.out.println("bucketWidth: " + bucketWidth);
-    		System.out.println("totalNumValues: " + totalNumValues);
-    		
-    		
     		return EQ;
     	} else if (op.equals(Op.GREATER_THAN)){
     		return GT;
@@ -167,7 +159,7 @@ public class IntHistogram {
     	} else if (op.equals(Op.LESS_THAN_OR_EQ)){
     		return LT+EQ;	
     	} else if (op.equals(Op.NOT_EQUALS)){ 
-    		return totalNumValues-EQ;
+    		return 1-EQ;
     	}
     	
         return -1.0;
