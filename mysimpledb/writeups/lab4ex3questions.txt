@@ -4,22 +4,60 @@ Questions
 Answer these questions.  With each question is a hint as to which part of the code walk you might consult to find the answer.
 
 (Walk thru 1) How many instances of the TableStats class are created?
+An instance of TableStats is created for each table in the Catalog, which is read in. 
 
 (Walk thru 4) In class, we said a logical plan is a relational algebra tree.  That's not how it's represented in SimpleDB.  How is it represented? 
 
+There are objects for logical tables, filters, and joins. These are each initialized as empty vector objects in the constructor.
+There are also two hashes, subplanMap, and tableMap.
+As the parser parses, it adds objects to its logical plans with LogicalPlan methods.
+
 (Walk thru 5) The physicalPlan is a relational algebra tree.  Describe the basic shape of this tree in terms of which ops go where.
 
+Filters are sent to the bottom of the tree, above scans (relations). Joins are in the middle, joins can join joins with scans. 
+Projections are at the top. 
+
 (Walk thru 5) Suppose a query applies multiple filters to a single table.  For example, the query described in the lab write up filters on both actor first and last name.  In such cases, how is the selectivity estimated?  
+
+FilterSelectivity works by calculating the selectivity of the thing directly below it. If there were two filter, suppose first name is on top and last name is on the bottom,
+it would calculate the selectivity of last name from the relation or join, and then it would calculate the selectivity of first name from the result of this. 
 
 (Walk thru 5) Explain the meaning of this if statement.  Why should the subplanMap have size 0 or 1 at this point?
 
     if (subplanMap.size() > 1) {
         throw new ParsingException("Query does not include join expressions joining all nodes!");
     }
+    
+    Right before each join, we have a line:
+    subplanMap.remove(t2name);
+    This should remove the name for each of the inner attribute, and add it to the inner attribute if it matches the predicate
+    If it's greater than 1, then the join didn't finish. 
 
 (Walk thru 7) What does computeCostAndCardOfSubplan do when the joinSet contains only a single join, the joinToRemove?
 
+	It will cause the if (news.isEmpty()) section to run. This is because news gets rid of j. It sets the cost, cardinality, and left and right pkey. Then it exits the if statement, and goes to the case where prevBest is left.
+	Then it swaps this node with itself, makes a CostCard out of the variables set in the if block, and returns it. 
+	
+
 (Walk thru 9) Suppose we are considering a join between a table A and the result of a join between B and C.  Assume table A is the outer relation in the join.  What is the cost estimate?  Your expression should be in terms of the sizes (# pages, # tuples) of the base relations A, B, C.
 
-(Walk thru 10) In lab 3, you write Join and Filter operators.  Both of these support the DbIterator interface.  When/where are these iterators called?
+Na = number of pages in A
+Nb = number of pages in B
+Nc = number of pages in C
+na = number of tuples in A
+nb = number of tuples in B
+nc = number of tuples in C
+
+Cost of joining b and c: Nb + nb*nc
+
+Cost of joining a with b&c: Na + (na * scancost (Nb + nb*nc))
+
+(Walk thru 10) In lab 3, you write Join and Filter operators. Both of these support the DbIterator interface.  When/where are these iterators called?
+
+It looks like the filters are applied in the transition from the logical plan to the physical plan. It makes sense that SimpleDB can 
+	do this, because all it does is push filters down to the bottom, right above their base tables. The logical plan doesn't really need
+	to consider them. (Actually I'm not sure, it's helpful to know about filter statistics and stuff when doing joins. Back to the code)
+	In OperatorCardinality, the constructor checks to see if the next part of the logical plan is a filter. If it is, it calls
+	UpdateFilterCardinality, and this is where we see the iterator over the child. 
+
 

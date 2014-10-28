@@ -21,10 +21,28 @@ Walk thru 2: simpledb.Parser.processNextStatement()
 Walk thru 3: simpledb.Parser.handleQueryStatement()
 
 	<fill this in>	
+	Makes a new query from the tid (parameter)
+	Makes a logical plan (LogicalPlan), by calling parseQueryLogicalPlan
+	Makes a physical plan (DbIterator)
+	
+	Selects a physical plan
+	Selects a logical plan
+	
+	Invokes a visualizer
+	Return the query that was made earlier (Query)
 
 Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
-
-	<fill this in>
+	
+	For each element of 'from', we add a scan to our logical plan. From is a vector of type ZFromItem
+	Each element is a table name. This method is basically scanning each table mentioned in the FROM clause,
+	and then adds a Scan node (which would be the equivalent of R or S in our examples)
+	
+	
+	Next it parses the WHERE clause, in which it creates Filter and Join nodes as needed. 
+	
+	Then it looks for group by fields. 
+	
+	Finally, it parses the select statement. It accounts for aggregate values, too.
 
 	Note: this method is rather long and complex.  Your walk thru should focus
 	on the high-level ideas.  Specifically, explain how SQL query is processed to construct the LogicalPlan.  
@@ -36,28 +54,83 @@ Walk thru 5: simpledb.LogicalPlan.physicalPlan()
 		- filterSelectivities
 		- statsMap
 		- subplanMap
-
-	<fill this in>
-
+		
+	This will return the physical plan (DbIterator)
+	
+	It iterates through all the tables
+	for each table T in tables
+		create a seqscan for T
+		add the scan to subplanMap
+		add basetablestats (of this ss) to the statsMap
+		make the filterSelectivities for this table = 1
+		
+	StatsMap keeps track of table statistics. 
+		
+	Next, iterate through all the filters
+	for each filter F in the filterIterator
+		get the subplan for this filter
+		gets the field type for the attribute to be filtered on 
+		creates a predicate for this filter
+		subPlanMap += the name of this table and the filter on it
+		updates filterSelectivities
+	
+	FilterSelectivities is used to keep track of the selectivity of a predicate on a relation. 
+	SubPlanMap is the sub plan of a filter or a join
+	
+	Now we make jo, the joinOptimizer, out of this logical plan, and our joins 
+	it orders the joins, and makes an iterator over it. 
+	Then we make a new iterator, which will be the iterator for the joined product
+	Equivimap keeps table names consistent
+	
+	We determine if we are joining relations, or other join operators. if it's join operators, set the plan to the subplan
+	If either plan is null, throw an error
+	Then we do the join. (double nested loops)
+		
+	Project, includes aggregators
+	
+	The purpose of this physicalPlan method is to take the data structures that were used to create the logical plan, 
+	and create a plan/tree out of them. 
+	
 Walk thru 6: simpledb.JoinOptimizer.orderJoins()
 
-	<fill this in>
+	This (currently unimplemented) method will return the order in which the relations of the query should be joined.
+	This is the Selinger method that we talked about in class. The outer loop (index i) is responsible for finding the best plan
+	between i joins. 
+	
+	The next inner loop looks at all subsets of length i of the given relations. 
+	The code checks to see if there is only one node. If there is, there isn't much of a contest. 
+	If is are more than one node, it builds an empty set. 
+	
+	Finally, the inner-most loop iterates through all possible subsets of size i-1 (S'). It calculates S - S', and it finds
+	the plan that, when S - S' is added, has the lowest join cost. If it is the best plan, bestPlan is updated to this plan. 
 
 Walk thru 7: JoinOptimizer.computeCostAndCardOfSubplan()
 
-	<fill this in>
-
+	computeCostAndCardOfSubplan should be used in the inner-most loop of JoinOptimizer.orderJoins(). This is the part of the 
+	algorithm that takes the set of relations that have been built, and finds which one of the relations should go last,
+	to minimize total cost. 
+	
+	It gets some information about the two tables, gets the "news", which is the set of new relations we could join***, and removes 
+	j. Next, it calculates the cost of doing the scan, and estimates the cardinality of the relation or join. Then it compares the costs
+	of j and j2, which are the 'removed' tuple, and the reflection of it, respectively. It sets the cheaper cost to cost1. If it's worse
+	than our previous best, we return null. Otherwise we set it as our newest best, make a CostCard out of it, and return it. 
+ 
 Walk thru 8: JoinOptimizer.estimateJoinCost()
 
-	<fill this in>
+	SimpleDB uses nested loops, so it should just look to the Catalog to find Nr, Ns, and nr, where Nr is the smaller relation. 
+	The formula should just be Nr + (nr*Ns)
 
 Walk thru 9: JoinOptimizer.estimateJoinCardinality()
 
-	<fill this in>
+	This function will use the catalog to gather statistics about the relations. 
+	The formula for this estimation is 1/(Nr*Ns*V(b,s)), where Nr is the number of pages in R, Ns is the number of pages in S,
+	and V(b,s) is the number of distinct values for b in S. This is assuming that S is the smaller relation. If R is the smaller relation,
+	we'd use v(a,r).
 
 Walk thru 10 query.execute()
 	
 	Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
 
-	<fill this in>
-
+	Queries have a bunch of information. The basic idea of this method is to print out the results of the query. It does this by first 
+	getting the appropriate tuples desc (which it gets from Parser.getTupleDesc). Next, it prints out some dashes. Then it starts up the 
+	iterator, and prints out tuples while it has tuples. Query seems like the highest level of abstraction. 
