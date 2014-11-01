@@ -14,13 +14,14 @@ import simpledb.Predicate.Op;
 public class TableStats {
 	
 	private DbFile f;
-	private ArrayList<ArrayList<Field>> allFields;
-	private ArrayList<Field> minValues;
-	private ArrayList<Field> maxValues;
-	private ArrayList<Integer> distinctValues;
+	private int[] numDistinct;
 	private TupleDesc td;
-	private int numPages;
 	private int numTups;
+	private Object[] histograms;
+	private int IoCostPerPage;
+	private Tuple maxes;
+	private Tuple mins;
+	ArrayList<HashSet<Field>> distinctVals;
 
     private static final ConcurrentHashMap<String, TableStats> statsMap = new ConcurrentHashMap<String, TableStats>();
 
@@ -83,103 +84,101 @@ public class TableStats {
      *                      sequential-scan IO and disk seeks.
      */
     public TableStats(int tableid, int ioCostPerPage) {
-        // For this function, you'll have to get the
-        // DbFile for the table in question,
-        // then scan through its tuples and calculate
-        // the values that you need.
-        // You should try to do this reasonably efficiently, but you don't
-        // necessarily have to (for example) do everything
-        // in a single scan of the table.
-        // some code goes here
     	
     	f = Database.getCatalog().getDatabaseFile(tableid);
+    	IoCostPerPage = ioCostPerPage;
     	TransactionId tid = new TransactionId();
-    	DbFileIterator iterator = f.iterator(tid);
-    	
+    	SeqScan iterator = new SeqScan(tid, tableid);
     	td = f.getTupleDesc();
+    	this.numDistinct = new int[td.numFields()];
     	
-    	// Make an arraylist for each column
-    	allFields = new ArrayList<ArrayList<Field>>();
+    	//System.out.println("td.numFields: " + td.numFields());
+    	    	
+    	// http://stackoverflow.com/questions/19013855/java-avoid-inserting-duplicate-in-arraylist
+    	distinctVals = new ArrayList<HashSet<Field>>();
+    	
+    	maxes = new Tuple(td); // tuple for max values
+    	mins = new Tuple(td);  // surprisingly a tuple for minimum values
+    	
+    	int tupleNum = 0;
     	
     	Tuple t;
-    	int tupNum = 0;
+    	// compute min and max for each field
     	try {
-    		iterator.open();
+    		iterator.open();	
+
+    		t = iterator.next();
+    		// Populate max and min tuples
+    		for(int i = 0; i < td.numFields(); i++) {
+    			//System.out.println(i);
+				mins.setField(i, t.getField(i));
+				maxes.setField(i, t.getField(i));
+			}
+    		    		
+    		iterator.rewind();
+    		
 			while (iterator.hasNext()){ // for each tuple
 				t = iterator.next();
 				
-				for (int i = 0; i < td.getSize(); i++){
-					allFields.get(tupNum).set(i, t.getField(i));
+				for (int i = 0; i < td.numFields(); i++){ // for each column
+					
+					if (t.getField(i).compare(Op.GREATER_THAN, maxes.getField(i))){
+						maxes.setField(i, t.getField(i));
+					}
+					if (t.getField(i).compare(Op.LESS_THAN, mins.getField(i))){
+						mins.setField(i, t.getField(i));
+					}
 					
 				}
-				tupNum++;
+				tupleNum++;
 			}
 		} catch (DbException | TransactionAbortedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-    	
-    	numTups = tupNum;
-    	
-    	try {
-			iterator.rewind();
-		} catch (DbException | TransactionAbortedException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-    	
-    	minValues = new ArrayList<Field>();
-    	maxValues = new ArrayList<Field>();
-    	
-    	    	
-    	// Initialize min and max
-    	minValues.add(allFields.get(0).get(0));
-    	maxValues.add(allFields.get(0).get(0));
-    	
-    	// for each column, get the max and min values
-    	// Also keep track of the number of distinct values
-    	tupNum = 0;
-    	try {
-    		for (int j = 0; j < td.getSize(); j++){ // for each column
-    			while (iterator.hasNext()){ // for each tuple
-    				t = iterator.next();
-    				if (allFields.get(j).get(tupNum).compare(Op.GREATER_THAN, maxValues.get(j))){
-    					maxValues.set(j, allFields.get(j).get(tupNum));
-    				}
-    				if (allFields.get(j).get(tupNum).compare(Op.LESS_THAN, minValues.get(j))){
-    					minValues.set(j, allFields.get(j).get(tupNum));
-    				}	
-    			    					
-    				tupNum++;	
-    			}
+    	    	    	
+    	// Make empty histograms for each field
+    	histograms = new Object[td.numFields()];
+    	for(int i=0; i < td.numFields(); i++) {
+			if(td.getFieldType(i).equals(Type.INT_TYPE)) {
+				int max = ((IntField) maxes.getField(i)).getValue();
+    			int min = ((IntField) mins.getField(i)).getValue();
+		    	histograms[i] = new IntHistogram(NUM_HIST_BINS, min, max);
+			} else {
+				histograms[i] = new StringHistogram(NUM_HIST_BINS);
 			}
 			
-		} catch (DbException | TransactionAbortedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// one set of distincts per histogram
+			distinctVals.add(new HashSet<Field>());
+			
 		}
     	
-    	distinctValues = new ArrayList<Integer>();
-    	for (int i = 0; i < td.getSize(); i++){
-    		distinctValues.set(i, numTups);
-    	}
+    	// populate each histogram
     	
+    	tupleNum = 0;
     	try {
-    		for (int j = 0; j < td.getSize(); j++){ // for each column
-    			while (iterator.hasNext()){ // for each tuple
-    				t = iterator.next();
-    				for (int i = 0; i < td.getSize(); i++){
-    					if (allFields.get(j).get(tupNum) == allFields.get(1).get(tupNum)){
-    						distinctValues.set(distinctValues.get(j), distinctValues.get(j)-1);
-    					}
-    				}
-    			}
+    		iterator.rewind();
+			while (iterator.hasNext()){
+				t = iterator.next();
+				for (int i = 0; i < td.numFields(); i++){
+					if (td.getFieldType(i).equals(Type.INT_TYPE)){
+						// adding values takes an integer
+						int value = ((IntField)t.getField(i)).getValue();
+						((IntHistogram) histograms[i]).addValue(value);
+					} else {
+						String value = ((StringField)t.getField(i)).getValue();
+						((StringHistogram) histograms[i]).addValue(value);
+					}
+					distinctVals.get(i).add(t.getField(i));
+				}
+				tupleNum++;
 			}
 			
+
+			
 		} catch (DbException | TransactionAbortedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+    	numTups = tupleNum;
     }
 
     /**
@@ -195,8 +194,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-        int numPages = ((HeapFile) f).numPages();
-        return numPages * TableStats.IOCOSTPERPAGE;
+    	return ((HeapFile)f).numPages()*IoCostPerPage;
     }
 
     /**
@@ -227,7 +225,9 @@ public class TableStats {
      * @return The number of distinct values of the field.
      */
     public int numDistinctValues(int field) {
-       return distinctValues.get(field);
+    	
+    	//System.out.println(distinctVals);
+        return distinctVals.get(field).size();
     }
 
     /**
@@ -241,17 +241,15 @@ public class TableStats {
      * predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-            	
     	if (constant.getType() == Type.INT_TYPE){
     		IntField c = (IntField) constant;
-    		IntField max = (IntField) maxValues.get(field);
-    		IntField min = (IntField) minValues.get(field);	
-    		IntHistogram h = new IntHistogram(NUM_HIST_BINS, min.getValue(), max.getValue());
-    		return h.estimateSelectivity(op, c.getValue());
+    		
+    		IntHistogram hist = (IntHistogram) histograms[field];
+    		return hist.estimateSelectivity(op, c.getValue());
     	} else {
     		StringField c = (StringField) constant;
-    		StringHistogram h = new StringHistogram(NUM_HIST_BINS);
-    		return h.estimateSelectivity(op, c.getValue());
+    		StringHistogram hist = (StringHistogram) histograms[field];
+    		return hist.estimateSelectivity(op, c.getValue());
     	} 
     }
 }

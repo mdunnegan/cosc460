@@ -39,15 +39,17 @@ public class IntHistogram {
         	// resize
         	bucketWidth = 1;
         	lastBucketWidth = 1;
-        	numBuckets = max - min + 1;
+	
+        	numBuckets = max - min + 1; // 32
         } else {
         	// no resize necessary
         	bucketWidth = (max - min + 1) / buckets;
         	numBuckets = buckets;
         	lastBucketWidth = (max-(min+(buckets-1)*bucketWidth)) + 1;
-        	
-        }     
-        this.histogram = new int[numBuckets+1]; // The +1 makes the negative range test pass
+        }   
+        
+        
+        this.histogram = new int[numBuckets+1];
      }
 
     /**
@@ -80,24 +82,33 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-    	  
-    	// initial checks
-    	if (v < min && (op.equals(Op.GREATER_THAN_OR_EQ) || op.equals(Op.GREATER_THAN))){
-    		return 1;
+    	     	
+    	System.out.println("v:"+v);
+    	System.out.println("op:"+op);
+    	if (v > max) {
+    		if (op.equals(Op.EQUALS)){
+    			return 0;
+    		} else if (op.equals(Op.GREATER_THAN) || op.equals(Op.GREATER_THAN_OR_EQ)){
+    			return 0;
+    		} else if (op.equals(Op.LESS_THAN) || op.equals(Op.LESS_THAN_OR_EQ)){
+    			return 1;
+    		} else if (op.equals(Op.NOT_EQUALS)){
+    			return 1;
+    		}
+    	} else if (v < min){
+    		if (op.equals(Op.EQUALS)){
+    			return 0;
+    		} else if (op.equals(Op.GREATER_THAN) || op.equals(Op.GREATER_THAN_OR_EQ)){
+    			return 1;
+    		} else if (op.equals(Op.LESS_THAN) || op.equals(Op.LESS_THAN_OR_EQ)){
+    			return 0;
+    		} else if (op.equals(Op.NOT_EQUALS)){
+    			return 1;
+    		}
     	}
-    	if (v > max && (op.equals(Op.GREATER_THAN_OR_EQ) || op.equals(Op.GREATER_THAN))){
-    		return 0;
-    	}
-    	if (v < min && (op.equals(Op.LESS_THAN_OR_EQ) || op.equals(Op.LESS_THAN))){
-    		return 0;
-    	}
-    	if (v > max && (op.equals(Op.LESS_THAN_OR_EQ) || op.equals(Op.LESS_THAN))){
-    		return 1;
-    	} // end initial checks
-    	
-    	int vBucket = (int) Math.floor((v-min)/bucketWidth);
 
-    	
+    	int vBucket = (int) Math.floor((v-min)/bucketWidth);
+    	    	
     	// EQ might be in last bucket!!
     	double EQ;
     	if (vBucket == numBuckets-1){
@@ -105,7 +116,7 @@ public class IntHistogram {
     	} else {
     		EQ = (histogram[vBucket] / (double) bucketWidth) / totalNumValues;
     	}
-    	      	
+      	
     	// Greater Than
     	int bRightGT;
     	if (vBucket == numBuckets - 1){
@@ -128,9 +139,7 @@ public class IntHistogram {
 
     	double GT = totalBucketSelectivity;
     	// end Greater Than
-    	
-    	//////////////////////////
-    	
+    	    	
     	// Less Than
     	int bLeftLT;
     	if (vBucket == numBuckets - 1){ // last bucket
