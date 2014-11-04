@@ -5,9 +5,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
-//import java.util.concurrent.ConcurrentHashMap;
-//
-//import simpledb.TupleDesc.TDItem;
 
 /**
  * The Catalog keeps track of all available tables in the database and their
@@ -20,16 +17,19 @@ import java.util.*;
  */
 public class Catalog {
 
-	private Map<String, DbFile> tableHash; // {name: table}
-	private Map<String, String> keyHash; // {name: keys as a string, weird}
-	
+    private Map<Integer,DbFile> tables;
+    private Map<Integer,String> tableNames;
+    private Map<Integer,String> tableKeys;
+
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
-        tableHash = new HashMap<String, DbFile>();
-        keyHash = new HashMap<String, String>();
+        // some code goes here
+        tables = new HashMap<Integer, DbFile>();
+        tableNames = new HashMap<Integer, String>();
+        tableKeys = new HashMap<Integer, String>();
     }
 
     /**
@@ -42,20 +42,15 @@ public class Catalog {
      * @param pkeyField the name of the primary key field
      *                  conflict exists, use the last table to be added as the table for a given name.
      */
-    public void addTable(DbFile file, String name, String pkeyField){
-    	if (file == null){
-    		throw new RuntimeException("File is null");
-    	}
-    	if (name == null){
-    		throw new RuntimeException("Name is null");
-    	}
-    	if (pkeyField == null){
-    		throw new RuntimeException("pKeyField is null");
-    	}	
-    	tableHash.put(name, file);	
+    public void addTable(DbFile file, String name, String pkeyField) {
+        // some code goes here
+        int id = file.getId();
+        tables.put(id, file);
+        tableNames.put(id, name);
+        tableKeys.put(id, pkeyField);
     }
 
-    public void addTable(DbFile file, String name){
+    public void addTable(DbFile file, String name) {
         addTable(file, name, "");
     }
 
@@ -67,7 +62,7 @@ public class Catalog {
      * @param file the contents of the table to add;  file.getId() is the identfier of
      *             this file/tupledesc param for the calls getTupleDesc and getFile
      */
-    public void addTable(DbFile file){
+    public void addTable(DbFile file) {
         addTable(file, (UUID.randomUUID()).toString());
     }
 
@@ -77,11 +72,21 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // search the catalog for a DbFile whose name == name. return the id of this table
-    	if (!tableHash.containsKey(name)){
-    		throw new NoSuchElementException("Table does not exist");
-    	}
-        return tableHash.get(name).getId();
+        // some code goes here
+        Set<Integer> ids = tableNames.keySet();
+        for (Integer id : ids) {
+            if (tableNames.get(id).equals(name)) {
+                return id;
+            }
+        }
+        throw new NoSuchElementException();
+    }
+
+    private void checkId(int tableid) throws NoSuchElementException {
+        if (!tables.containsKey(tableid)){
+            throw new NoSuchElementException();
+        }
+        assert tableKeys.containsKey(tableid) && tableNames.containsKey(tableid);
     }
 
     /**
@@ -91,16 +96,10 @@ public class Catalog {
      *                function passed to addTable
      * @throws NoSuchElementException if the table doesn't exist
      */
-    
-    // Don't know why this isn't working
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-    	for (DbFile file : tableHash.values()){
-    		if (file.getId() == tableid){
-    			return file.getTupleDesc();
-    		}
-    	}
-    	return null;	
-        //throw new NoSuchElementException("No such element");
+        // some code goes here
+        checkId(tableid);
+        return tables.get(tableid).getTupleDesc();
     }
 
     /**
@@ -111,51 +110,36 @@ public class Catalog {
      *                function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-    	for (DbFile file : tableHash.values()){
-    		if (file.getId() == tableid){
-    			return file;
-    		}
-    	}
-        return null;
+        // some code goes here
+        checkId(tableid);
+        return tables.get(tableid);
     }
 
     public String getPrimaryKey(int tableid) {
-    	for (String tableName : tableHash.keySet()){
-    		if (tableHash.get(tableName).getId() == tableid){
-    			return keyHash.get(tableName);
-    		}
-    	}
-    	return null;
+        // some code goes here
+        checkId(tableid);
+        return tableKeys.get(tableid);
     }
 
     public Iterator<Integer> tableIdIterator() {
-    	
-    	// wont work
-    	//List<Integer> ids = Arrays.asList(tableHash.values().getId()); // iterates through the values, this should be close, it's very similar to the TupleDesc Iterator
-    	List<Integer> ids = new ArrayList<Integer>(tableHash.size());
-    	
-    	// iterate through these
-    	for (DbFile dbfile : tableHash.values()){
-    		ids.add(dbfile.getId());
-    	}
-    	
-    	return ids.iterator();     
+        // some code goes here
+        return tables.keySet().iterator();
     }
 
     public String getTableName(int id) {
-    	for (String name : tableHash.keySet()){
-    		if (tableHash.get(name).getId() == id){
-    			return name;
-    		}
-    	}
-        return null;
+        // some code goes here
+        checkId(id);
+        return tableNames.get(id);
     }
 
     /**
      * Delete all tables from the catalog
      */
     public void clear() {
-        tableHash.clear();
+        // some code goes here
+        tables.clear();
+        tableNames.clear();
+        tableKeys.clear();
     }
 
     /**
