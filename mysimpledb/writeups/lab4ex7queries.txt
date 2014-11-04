@@ -10,20 +10,37 @@ and a.fname='Ginger' and a.lname='Rogers';
 
 Query 1 optimizer's plan:
 
-<fill in here>
+select d.fname, d.lname
+from Actor a, Casts c, Movie_Director m, Director d
+where a.id=c.pid and c.mid=m.mid and m.did=d.id 
+and a.fname='Ginger' and a.lname='Rogers';
+
+All the tests pass, even QueryTest. But even though QueryTest passes,
+the transaction gets aborted because of a null pointer exception. I'm guessing
+there's an error in another file. Therefore, I'm not sure what plan it chose. 
 
 Query 1 plan explanation:
 
-<fill in here>
+I'm assuming the optimal plan is a left deep tree with filters right above relations,
+and projections at the top. I would also guess that the smallest relations with filters 
+applied are deeper and more left in the tree. Because there will only be 1 actor, I think
+Actor will be the most left relation. 
 
 Query 2:
 
-<fill in here>
+// All action movies directed by Michael Bay that include Shia LeBeouff
 
-Query 1 optimizer's plan:
+select a.fname, a.lname
+from Actor a , Casts c, Movie_Director m, Director d, Genre g
+where a.lname = "LeBeouff" and a.fname = "Shia" and a.id = c.pid and c.mid = m.mid and m.did = d.id 
+	  and g.mid = m.mid and genre = "Action" and d.fname = "Michael" and d.lname = "Bay"
+	  
 
-<fill in here>
+Query 2 optimizer's plan:
 
-Query 1 plan explanation:
+I wish I knew!
 
-<fill in here>
+Query 2 plan explanation:
+
+it probably joins Actor and Director first, because they're very small, because
+of the filters. Again, projections will be at the top. 
