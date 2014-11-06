@@ -4,6 +4,11 @@ Your name(s):
 I made Counter.increment() a synchronized method. 
 
 2. Briefly describe (1-2 sentences) an alternate implementation for exercise 1.
+Another approach is to change Increment. 
+synchronized(counter){
+	counter.increment(name);
+}
+This will only allow calls to counter.increment synchronously. Only one thread can access counter at a time.
 
 
 3. Exercise 2: Explain the deadlock that happens in Deadlock in terms of locks and threads waiting on locks. The two threads in this case are alphonse and gaston. 
