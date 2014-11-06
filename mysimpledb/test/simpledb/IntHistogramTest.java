@@ -237,6 +237,14 @@ public class IntHistogramTest {
         h.addValue(3);
         h.addValue(10);
 
+//        System.out.println(h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 4)); // .625 right
+//        System.out.println(h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 9)); // .125, should be .25
+//        System.out.println(h.estimateSelectivity(Op.EQUALS, 4)); // 3/4 /2 
+//        System.out.println(h.estimateSelectivity(Op.EQUALS, 9)); // 1/4 /2
+//        System.out.println(h.estimateSelectivity(Op.EQUALS, 10));// 1/4 /2
+        System.out.println(h.estimateSelectivity(Op.GREATER_THAN, 9)); // 0, should be .125
+        //System.out.println(h.estimateSelectivity(Op.GREATER_THAN, 3));
+        
         Assert.assertEquals(3.0/4.0 * 0.5 + 1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 4), TOLERANCE);
         Assert.assertEquals(1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 9), TOLERANCE);
     }

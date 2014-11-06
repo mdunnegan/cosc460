@@ -302,7 +302,6 @@ public class BufferPool {
     	try {
     		this.flushPage(hp.getId());
     		pages.remove(hp);
-    		System.out.println("Should have flushed page");
     	} catch (IOException e) {
     		throw new DbException("Page wasn't flushed or evicted");
     	}	

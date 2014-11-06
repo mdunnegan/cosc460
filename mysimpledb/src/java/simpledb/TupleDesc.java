@@ -104,7 +104,7 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public Type getFieldType(int i) throws NoSuchElementException {
-    	if (i > schema.length){
+    	if (i > schema.length - 1){ // might need to be length -1
     		throw new NoSuchElementException("Field out of bounds");
     	}
         return schema[i].fieldType;

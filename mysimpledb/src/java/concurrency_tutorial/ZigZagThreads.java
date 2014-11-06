@@ -1,8 +1,11 @@
 package concurrency_tutorial;
 
 public class ZigZagThreads {
-    private static final LockManager lm = new LockManager();
-    public static LockManager getLockManager() { return lm; }
+    private static final LockManager lm = new LockManager(); // instantiate a lock manager
+    
+    public static LockManager getLockManager() {
+    	return lm; 
+    }
 
     public static void main(String args[]) throws InterruptedException {
         int numZigZags = 10;
@@ -31,30 +34,43 @@ public class ZigZagThreads {
         }
     }
 
-    static class Zagger extends Zigger {
-
+    static class Zagger extends Zigger { // it's Zigger, but it has an extra method, Zagger
         public Zagger() {
             myPattern = "\\\\\\\\\\\\\\\\\\\\";
             isZigger = false;
         }
-
     }
 
     static class LockManager {
-        private boolean inUse = false;
-        private boolean needZig = true;
+        private boolean inUse = false;  // someone has the lock
+        private boolean needZig = true; // who's turn? true = zigs turn, false = zags turn
 
         private synchronized boolean isLockFree(boolean isZigger) {
-            // some code goes here
-            return true;
+        	return !inUse && isZigger == needZig;
         }
-
-        public void acquireLock(boolean isZigger) {
-            // some code goes here
+        
+        public void acquireLock(boolean isZigger) { // zigger
+            boolean waiting = true;
+            while (waiting) {
+                synchronized (this) {
+                    if (isLockFree(isZigger)) { // if lock is free for zigger                	
+                    	if (isZigger == needZig){
+                    		waiting = false;
+                    		needZig = !needZig;
+                    	}
+                    }
+                }
+                if (waiting) {
+                    try {
+                    	Thread.sleep(1);
+                    } catch (InterruptedException ignored) { }
+                }
+            }
         }
 
         public synchronized void releaseLock() {
-            // some code goes here
+            inUse = false;
         }
-    }}
+    }
+}
 

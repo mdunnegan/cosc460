@@ -52,10 +52,10 @@ public class TableStatsTest extends SimpleDbTestBase {
     @Test
     public void estimateScanCostTest() throws IOException, DbException, TransactionAbortedException {
         Object[] ret;
-        int[] ioCosts = new int[20];
-        int[] pageNums = new int[ioCosts.length];
+        int[] ioCosts = new int[20]; //[] len 20
+        int[] pageNums = new int[ioCosts.length]; //[] len 20
         // IO_COST constant, numPages change
-        for (int i = 0; i < ioCosts.length; ++i) {
+        for (int i = 0; i < ioCosts.length; ++i) { // 0-19
             ioCosts[i] = 1;
             pageNums[i] = 3 * (i + 1);
         }

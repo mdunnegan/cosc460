@@ -1,18 +1,39 @@
 Your name(s): 
 
 1. Explain how you modified SynchronizedThreads in exercise 1.
+I made Counter.increment() a synchronized method. 
 
 2. Briefly describe (1-2 sentences) an alternate implementation for exercise 1.
 
+
 3. Exercise 2: Explain the deadlock that happens in Deadlock in terms of locks and threads waiting on locks. The two threads in this case are alphonse and gaston. 
+The alphonse thread gets created, and then alphonse.bow(gaston) is called. 
+This locks alphonse. 
+The gaston thread also gets created, and then gaston.bow(alphonse) is called.
+This locks gaston. 
+The alphonse thread tries to call gaston.bowback(alphonse), but the gaston thread has locked gaston
+The gaston thread tries to call alphonse.bowback(gaston), but the alphonse thread has locked alphonse
+If either thread exited bow, the thread would release the lock. But this doesn't happen.
 
 a) What objects are being locked? 
 
+alphonse and gaston are locked. 
+
 b) Who has what locks? 
+
+Alphonse thread has locked alphonse, Gaston thread has locked gaston. 
 
 c) How does deadlock occur?
 
+There are at least two objects, and each one has the lock on the object that the other one needs. Blocking forever.
+
 4. Return to exercise 1, can deadlock occur here?  Explain why or why not.
 
+
+
 5. Explain why acquireLock uses a synchronized statement inside the body of the method. In other words, why not just make the acquireLock method synchronized, just like releaseLock? Will this work? Why or why not?
-	
+
+With the synchronized statement inside the body of the element, multiple threats can enter the element. 
+Right outside the statement is a while loop, so the reasoning behind using the statement is that multiple
+threats can be looping (in other words, waiting for the lock). If we made this a synchronized method,
+only 1 thread would be able to try to acquire the lock at any time. 

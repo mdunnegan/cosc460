@@ -14,28 +14,33 @@ public class Deadlock {
             return this.name;
         }
         public synchronized void bow(Friend bower) {
-            System.out.format("%s: %s"
-                + "  has bowed to me!%n",
-                this.name, bower.getName());
-            bower.bowBack(this);
+        	// acquires lock on bower? Nope, obj that called bow
+            System.out.format("%s: '%s" + " has bowed to me!'%n", this.name, bower.getName());
+            
+            // neither of them acquire the lock...why not?
+            bower.bowBack(this); // blocks on this
+            // doesn't releases lock, method never returns=[
         }
         public synchronized void bowBack(Friend bower) {
-            System.out.format("%s: %s"
-                + " has bowed back to me!%n",
-                this.name, bower.getName());
+        	System.out.println("Method called");
+            System.out.format("%s: %s"+ " has bowed back to me!%n", this.name, bower.getName());
         }
     }
 
     public static void main(String[] args) {
-        final Friend alphonse =
-            new Friend("Alphonse");
-        final Friend gaston =
-            new Friend("Gaston");
+        final Friend alphonse = new Friend("Alphonse");
+        final Friend gaston = new Friend("Gaston");
+        
         new Thread(new Runnable() {
-            public void run() { alphonse.bow(gaston); }
+            public void run() { 
+            	alphonse.bow(gaston); 
+            }
         }).start();
+        
         new Thread(new Runnable() {
-            public void run() { gaston.bow(alphonse); }
+            public void run() { 
+            	gaston.bow(alphonse); 
+            }
         }).start();
     }
 }

@@ -43,11 +43,14 @@ public class SynchronizedThreads {
             this.numIncrements = numIncrements;
         }
 
-        public void run() {
+        // adding synchronized only solves the problem half the time
+        public void run() { 
             // increment the counter numIncrements times
-            for (int i = 0; i < numIncrements; i++) {
-                counter.increment(name);
-            }
+	        for (int i = 0; i < numIncrements; i++) {
+	        	synchronized(counter){
+	        		counter.increment(name);
+	        	}
+        	}
         }
     }
 
@@ -58,6 +61,8 @@ public class SynchronizedThreads {
          * Increase the counter by one.
          * @param name the name of the incrementer (i.e., whoever called this method)
          */
+        
+        // synchronizing solves problem
         public void increment(String name) {
             int currCount = count;  // read
             // introduce a delay between read and write to "encourage" race conditions

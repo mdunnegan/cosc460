@@ -351,11 +351,13 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
         // Set the last boolean here to 'true' in order to have orderJoins()
         // print out its logic
         result = j.orderJoins(stats, filterSelectivities, false);
+        
+        System.out.println("The result you're looking for: " + result);
 
         // There are only three join nodes; if you're only re-ordering the join
         // nodes,
         // you shouldn't end up with more than you started with
-        Assert.assertEquals(result.size(), nodes.size());
+        Assert.assertEquals(nodes.size(), result.size());
 
         // There were a number of ways to do the query in this quiz, reasonably
         // well;
@@ -611,9 +613,12 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
 
         // If you're only re-ordering the join nodes,
         // you shouldn't end up with more than you started with
-        Assert.assertEquals(result.size(), nodes.size());
+        Assert.assertEquals(nodes.size(), result.size());
 
         // Make sure that "a" is the outermost table in the join
+        
+        System.out.println("nodes.size()" + nodes.size());
+        
         Assert.assertTrue(result.get(result.size() - 1).t2Alias.equals("a")
                 || result.get(result.size() - 1).t1Alias.equals("a"));
     }

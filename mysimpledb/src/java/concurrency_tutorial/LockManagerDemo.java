@@ -79,16 +79,20 @@ public class LockManagerDemo {
             boolean waiting = true;
             while (waiting) {
                 synchronized (this) {
-                    // check if lock is available
                     if (!inUse) {
                         // it's not in use, so we can take it!
                         inUse = true;
                         waiting = false;
+                        notifyAll(); // seems like a fairly simple design pattern
+                    } else {
+                    	try {
+							wait(); // wait if unavailable, notify if available
+						} catch (InterruptedException e) {}
                     }
                 }
                 if (waiting) {
                     try {
-                        Thread.sleep(1);
+                    	Thread.sleep(1);
                     } catch (InterruptedException ignored) { }
                 }
             }
