@@ -1,11 +1,14 @@
 package simpledb;
 
 import java.io.*;
+import java.security.Permission;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
 //import java.util.HashMap;
-//import java.util.LinkedList;
 //import java.util.Map;
-//import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.util.List;
 
@@ -37,6 +40,7 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
     private List<Page> pages;
     private List<Long> timeSinceUse;
+    private LockManager lockManager;
         
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -47,6 +51,7 @@ public class BufferPool {
     	pages = new ArrayList<Page>();
     	timeSinceUse = new ArrayList<Long>();
     	numPages = np;
+    	lockManager = new LockManager();
     }
 
     public int getNumberOfPages(){
@@ -77,24 +82,48 @@ public class BufferPool {
      * @param pid  the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-            throws TransactionAbortedException, DbException { // when page number over limit
+
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException { 
     	
-    	// go through all the pages, find the matching on
+    	//System.out.println("in getPage");
+    	//System.out.println(lockManager.holdslock(pid, tid));
+    	
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
-    			// if you get a page in the bufferpool, you're using it, so the timeSinceUse
-    			// should reset to 0
-    			timeSinceUse.set(i, (long) 0);
-    			return pages.get(i);
+    			
+    			synchronized (this){
+    				
+    				System.out.println(lockManager.holdslock(pid, tid)); // keeps saying nobody has the lock...
+    				
+    				if (!lockManager.holdslock(pid, tid)){ // if the lock manager doesn't hold our value
+    					System.out.println("found the page, isn't locked");
+    					lockManager.lock(pid, tid, perm);
+    					timeSinceUse.set(i, (long) 0);
+    					lockManager.unlock(pid, tid);
+    					return pages.get(i);
+    	    			
+    				} else { // if locking returns false, we must wait our turn!
+    					try {
+    						System.out.println("lock returns false");
+							wait();
+							return pages.get(i);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+    				}
+    			}
     		}
+    		//System.out.println("wasnt found");
     	}
+    	//System.out.println("uh");
     	
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
     		evictPage(); // evicts LRU page
+    		// should probably also remove elements from the the timestamp list, and the page array
     	}
     	
+    	// get the page from the catalog
     	DbFile dbfile = Database.getCatalog().getDatabaseFile(pid.getTableId());
     	
     	HeapPage newPage = (HeapPage) dbfile.readPage(pid);
@@ -118,6 +147,7 @@ public class BufferPool {
     public void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	lockManager.unlock(pid, tid);
     }
 
     /**
@@ -125,6 +155,7 @@ public class BufferPool {
      *
      * @param tid the ID of the transaction requesting the unlock
      */
+    // does it mean to be called completeTransaction? ..
     public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
@@ -133,10 +164,8 @@ public class BufferPool {
     /**
      * Return true if the specified transaction has a lock on the specified page
      */
-    public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
-        return false;
+    public boolean holdsLock(TransactionId tid, PageId p) {                                                     // cosc460
+        return lockManager.holdslock(p, tid);
     }
 
     /**
@@ -305,5 +334,159 @@ public class BufferPool {
     	} catch (IOException e) {
     		throw new DbException("Page wasn't flushed or evicted");
     	}	
+    }
+    
+    public class TransactionStruct{
+    	TransactionId transactionId;
+    	Permissions lockModeRequested;
+    	boolean lockGranted; // 0 no, 1 yes
+    }
+    
+    public class LockManager {
+    	
+    	ConcurrentHashMap<PageId, LinkedList<ArrayList<TransactionStruct>>> lockTable = new ConcurrentHashMap<PageId, LinkedList<ArrayList<TransactionStruct>>>();	
+    	
+    	public synchronized void lock(PageId pid, TransactionId tid, Permissions mode){
+    		System.out.println("pid hashcode: " + pid.hashCode());
+    		ArrayList<TransactionStruct> page = new ArrayList<TransactionStruct>();
+    		if (lockTable.contains(pid.hashCode())){ 
+    			
+    			// iterator over pages in this bucket
+    			Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
+    			
+    			while (pageIterator.hasNext()){
+    				
+    				page = pageIterator.next();
+    				TransactionStruct ts = new TransactionStruct();
+    				Iterator<TransactionStruct> tsIterator = page.iterator();
+    				
+    				while (tsIterator.hasNext()){
+    					ts = tsIterator.next();
+    					if (ts.lockGranted == true){ // later, determine if this is a shared lock
+    						TransactionStruct record = new TransactionStruct();
+            				record.transactionId = tid;
+            				record.lockModeRequested = mode;
+            				record.lockGranted = false;
+            				page.add(record);
+            				return;
+    					}
+    				}	
+    			}
+    			// if it got here, there were no transactions that were locking our page
+       			TransactionStruct record = new TransactionStruct();
+				record.transactionId = tid;
+				record.lockModeRequested = mode;
+				record.lockGranted = true;
+				page.add(record);
+				return;
+		
+    			
+//    				if (page.get(pageIndex).transactionId == tid){
+//    					return true;
+//    				}
+    				
+    				// determines if there are threads in line for the lock
+//    				if (page.size() > 0){ // easier to check the size of an arraylist than use an iterator on a linked list
+//    					
+//    					// if there are multiple pages, we need to see if anything has the lock
+//    					
+//    					System.out.println("pg size > 0");
+//    					
+//    					TransactionStruct record = new TransactionStruct();
+//        				record.transactionId = tid;
+//        				record.lockModeRequested = mode;
+//        				record.lockGranted = false;
+//        				page.add(record);
+//        				return;
+//    				}
+//    				
+//    				System.out.println("pg size < 0");
+//    					
+//    				TransactionStruct record = new TransactionStruct();
+//    				record.transactionId = tid;
+//    				record.lockModeRequested = mode;
+//    				record.lockGranted = true;
+//    				page.add(record);
+//    				return;
+    			
+    			
+
+    		} else { // if the hashmap doesn't have this bucket	
+    			System.out.println("went to else, pid was not in lockmanager");
+    			//System.out.println("pidhashcode: " + pid.hashCode());
+    			
+    			LinkedList<ArrayList<TransactionStruct>> newData = new LinkedList<ArrayList<TransactionStruct>>();
+    			
+    			TransactionStruct ts = new TransactionStruct();
+    			ts.lockGranted = true;
+    			ts.lockModeRequested = mode;
+    			ts.transactionId = tid;
+    			
+    			ArrayList<TransactionStruct> array = new ArrayList<TransactionStruct>();
+    			array.add(ts);
+
+    			newData.add(array);    			
+    			lockTable.put(pid, newData);
+    			
+    			//System.out.println(lockTable);
+    			
+    			return;
+    		}
+    	}
+    	
+    	public synchronized void unlock(PageId pid, TransactionId tid){
+    		if (lockTable.contains(pid.hashCode())){
+    			
+	    		ArrayList<TransactionStruct> page;
+	    		Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
+	    		
+	    		int pageIndex = 0;
+	    		while (pageIterator.hasNext()){
+    				page = pageIterator.next();    			
+    				
+    				if (page.size() > 0){
+    					for (TransactionStruct t : page){ // i is a 
+    						if (t.transactionId == tid){
+    							lockTable.get(pid.hashCode()).get(pageIndex).remove(t);
+    							
+    							// after removing this element, recheck the size of the array and try to start the next thing
+    							if (page.size() > 0){
+    								BufferPool b = Database.getBufferPool();
+    								b.lockManager.lock(pid, tid, Permissions.READ_ONLY); // this is probably wrong 
+    							}
+    						}	
+    					}
+    				}
+    				pageIndex++;
+    				
+    				throw new RuntimeException("You tried to unlock a thread that didn't have anything!");
+	    		}
+    		}	
+    	}
+    	
+    	public synchronized boolean holdslock(PageId pid, TransactionId tid){
+    		if (lockTable.contains(pid.hashCode())){
+    		
+    			ArrayList<TransactionStruct> page;
+	    		Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
+	    			
+	    		while (pageIterator.hasNext()){
+    				page = pageIterator.next();
+    				TransactionStruct ts;
+    				
+    				// gotta loop through all the transactions of a page
+    				
+    				Iterator<TransactionStruct> transactionStructIterator = page.iterator();
+    				while (transactionStructIterator.hasNext()){
+    					ts = transactionStructIterator.next();
+    					if (ts.transactionId == tid){
+    						return true;
+    					}
+    				}
+    				//return false;
+	    		}
+    		}
+    		return false;	
+    	}
     }
 }
