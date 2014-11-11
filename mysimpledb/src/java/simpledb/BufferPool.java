@@ -61,6 +61,10 @@ public class BufferPool {
     public static int getPageSize() {
         return pageSize;
     }
+    
+    public LockManager getLockManager(){
+    	return lockManager;
+    }
 
     // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
     public static void setPageSize(int pageSize) {
@@ -85,37 +89,13 @@ public class BufferPool {
 
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException { 
     	
-    	//System.out.println("in getPage");
-    	//System.out.println(lockManager.holdslock(pid, tid));
-    	
+    	lockManager.getLock(tid, pid, perm);
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
-    			
-    			synchronized (this){
-    				
-    				System.out.println(lockManager.holdslock(pid, tid)); // keeps saying nobody has the lock...
-    				
-    				if (!lockManager.holdslock(pid, tid)){ // if the lock manager doesn't hold our value
-    					System.out.println("found the page, isn't locked");
-    					lockManager.lock(pid, tid, perm);
-    					timeSinceUse.set(i, (long) 0);
-    					lockManager.unlock(pid, tid);
-    					return pages.get(i);
-    	    			
-    				} else { // if locking returns false, we must wait our turn!
-    					try {
-    						System.out.println("lock returns false");
-							wait();
-							return pages.get(i);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-    				}
-    			}
+    			timeSinceUse.set(i, (long) 0);
+    			return pages.get(i);
     		}
-    		//System.out.println("wasnt found");
     	}
-    	//System.out.println("uh");
     	
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
@@ -147,7 +127,7 @@ public class BufferPool {
     public void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
-    	lockManager.unlock(pid, tid);
+    	lockManager.releaseLock(pid, tid);
     }
 
     /**
@@ -164,8 +144,8 @@ public class BufferPool {
     /**
      * Return true if the specified transaction has a lock on the specified page
      */
-    public boolean holdsLock(TransactionId tid, PageId p) {                                                     // cosc460
-        return lockManager.holdslock(p, tid);
+    public boolean holdsLock(TransactionId tid, PageId pid) {                                                     // cosc460
+        return lockManager.holdsLock(pid, tid);
     }
 
     /**
@@ -336,157 +316,4 @@ public class BufferPool {
     	}	
     }
     
-    public class TransactionStruct{
-    	TransactionId transactionId;
-    	Permissions lockModeRequested;
-    	boolean lockGranted; // 0 no, 1 yes
-    }
-    
-    public class LockManager {
-    	
-    	ConcurrentHashMap<PageId, LinkedList<ArrayList<TransactionStruct>>> lockTable = new ConcurrentHashMap<PageId, LinkedList<ArrayList<TransactionStruct>>>();	
-    	
-    	public synchronized void lock(PageId pid, TransactionId tid, Permissions mode){
-    		System.out.println("pid hashcode: " + pid.hashCode());
-    		ArrayList<TransactionStruct> page = new ArrayList<TransactionStruct>();
-    		if (lockTable.contains(pid.hashCode())){ 
-    			
-    			// iterator over pages in this bucket
-    			Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
-    			
-    			while (pageIterator.hasNext()){
-    				
-    				page = pageIterator.next();
-    				TransactionStruct ts = new TransactionStruct();
-    				Iterator<TransactionStruct> tsIterator = page.iterator();
-    				
-    				while (tsIterator.hasNext()){
-    					ts = tsIterator.next();
-    					if (ts.lockGranted == true){ // later, determine if this is a shared lock
-    						TransactionStruct record = new TransactionStruct();
-            				record.transactionId = tid;
-            				record.lockModeRequested = mode;
-            				record.lockGranted = false;
-            				page.add(record);
-            				return;
-    					}
-    				}	
-    			}
-    			// if it got here, there were no transactions that were locking our page
-       			TransactionStruct record = new TransactionStruct();
-				record.transactionId = tid;
-				record.lockModeRequested = mode;
-				record.lockGranted = true;
-				page.add(record);
-				return;
-		
-    			
-//    				if (page.get(pageIndex).transactionId == tid){
-//    					return true;
-//    				}
-    				
-    				// determines if there are threads in line for the lock
-//    				if (page.size() > 0){ // easier to check the size of an arraylist than use an iterator on a linked list
-//    					
-//    					// if there are multiple pages, we need to see if anything has the lock
-//    					
-//    					System.out.println("pg size > 0");
-//    					
-//    					TransactionStruct record = new TransactionStruct();
-//        				record.transactionId = tid;
-//        				record.lockModeRequested = mode;
-//        				record.lockGranted = false;
-//        				page.add(record);
-//        				return;
-//    				}
-//    				
-//    				System.out.println("pg size < 0");
-//    					
-//    				TransactionStruct record = new TransactionStruct();
-//    				record.transactionId = tid;
-//    				record.lockModeRequested = mode;
-//    				record.lockGranted = true;
-//    				page.add(record);
-//    				return;
-    			
-    			
-
-    		} else { // if the hashmap doesn't have this bucket	
-    			System.out.println("went to else, pid was not in lockmanager");
-    			//System.out.println("pidhashcode: " + pid.hashCode());
-    			
-    			LinkedList<ArrayList<TransactionStruct>> newData = new LinkedList<ArrayList<TransactionStruct>>();
-    			
-    			TransactionStruct ts = new TransactionStruct();
-    			ts.lockGranted = true;
-    			ts.lockModeRequested = mode;
-    			ts.transactionId = tid;
-    			
-    			ArrayList<TransactionStruct> array = new ArrayList<TransactionStruct>();
-    			array.add(ts);
-
-    			newData.add(array);    			
-    			lockTable.put(pid, newData);
-    			
-    			//System.out.println(lockTable);
-    			
-    			return;
-    		}
-    	}
-    	
-    	public synchronized void unlock(PageId pid, TransactionId tid){
-    		if (lockTable.contains(pid.hashCode())){
-    			
-	    		ArrayList<TransactionStruct> page;
-	    		Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
-	    		
-	    		int pageIndex = 0;
-	    		while (pageIterator.hasNext()){
-    				page = pageIterator.next();    			
-    				
-    				if (page.size() > 0){
-    					for (TransactionStruct t : page){ // i is a 
-    						if (t.transactionId == tid){
-    							lockTable.get(pid.hashCode()).get(pageIndex).remove(t);
-    							
-    							// after removing this element, recheck the size of the array and try to start the next thing
-    							if (page.size() > 0){
-    								BufferPool b = Database.getBufferPool();
-    								b.lockManager.lock(pid, tid, Permissions.READ_ONLY); // this is probably wrong 
-    							}
-    						}	
-    					}
-    				}
-    				pageIndex++;
-    				
-    				throw new RuntimeException("You tried to unlock a thread that didn't have anything!");
-	    		}
-    		}	
-    	}
-    	
-    	public synchronized boolean holdslock(PageId pid, TransactionId tid){
-    		if (lockTable.contains(pid.hashCode())){
-    		
-    			ArrayList<TransactionStruct> page;
-	    		Iterator<ArrayList<TransactionStruct>> pageIterator = lockTable.get(pid.hashCode()).iterator();
-	    			
-	    		while (pageIterator.hasNext()){
-    				page = pageIterator.next();
-    				TransactionStruct ts;
-    				
-    				// gotta loop through all the transactions of a page
-    				
-    				Iterator<TransactionStruct> transactionStructIterator = page.iterator();
-    				while (transactionStructIterator.hasNext()){
-    					ts = transactionStructIterator.next();
-    					if (ts.transactionId == tid){
-    						return true;
-    					}
-    				}
-    				//return false;
-	    		}
-    		}
-    		return false;	
-    	}
-    }
 }
