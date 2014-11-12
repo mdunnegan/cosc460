@@ -35,15 +35,11 @@ public class LockManager {
 			// then we do need to get it.
 			// how do we get it?
 					
-			System.out.println("Lock was not available");
+			//System.out.println("Lock was not available");
 			while (!lockHeld){
 				requestLock(tid, pid, mode);
-				try {
-					Thread.sleep(1);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				//wait();
+				lockHeld = requestLock(tid, pid, mode);
 			}
 		}			 
 		
@@ -53,9 +49,9 @@ public class LockManager {
 
 		LinkedList<TransactionStruct> ll = new LinkedList<TransactionStruct>();
 		
-		if (!lockTable.contains(pid)){
+		if (!lockTable.containsKey(pid)){
 			
-			System.out.println("Didn't find " + pid + " in lock table");
+			System.out.println("Didn't find '" + pid + "' in lock table");
 			System.out.println(lockTable);
 			// make a new thing, tack it on
 			TransactionStruct newTS = new TransactionStruct(tid, mode, true);
