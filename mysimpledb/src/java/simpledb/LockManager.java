@@ -80,7 +80,7 @@ public class LockManager {
 	}
 	
 	public synchronized void releaseLock(PageId pid, TransactionId tid){
-		if (lockTable.contains(pid)){
+		if (lockTable.containsKey(pid)){
 			LinkedList<TransactionStruct> LL = lockTable.get(pid);
 			TransactionStruct ts = new TransactionStruct();
 			Iterator<TransactionStruct> llIterator = LL.iterator();
@@ -88,7 +88,8 @@ public class LockManager {
 				ts = llIterator.next();
 				if (ts.lockGranted && ts.transactionId == tid){
 					//TODO try to get next transaction to run
-					lockTable.get(pid).remove(ts);
+					//lockTable.get(pid).remove(ts);
+					lockTable.remove(pid);
 					//llIterator.next().getLock(llIterator.next().transactionId, pid, Permissions.READ_ONLY);
 				}
 			}
