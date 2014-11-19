@@ -42,9 +42,8 @@ public class HeapPageId implements PageId {
      */
     public int hashCode() {
     	String code = new String();
-    	code = tId + " " + pNum;
+    	code = tId + "\t" + pNum;
         return code.hashCode();
-        //throw new UnsupportedOperationException("implement this");
     }
 
     /**

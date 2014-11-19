@@ -1,5 +1,6 @@
 package simpledb;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +22,9 @@ public class LockManager {
 		
 	}
 	
-	ConcurrentHashMap<PageId, LinkedList<TransactionStruct>> lockTable = new ConcurrentHashMap<PageId, LinkedList<TransactionStruct>>();	
+	HashMap<PageId, LinkedList<TransactionStruct>> lockTable = new HashMap<PageId, LinkedList<TransactionStruct>>();	
+	// need to separate the data structures.
+	
 	
 	public void getLock(TransactionId tid, PageId pid, Permissions mode){
 				
@@ -30,19 +33,16 @@ public class LockManager {
 		if (holdsLock(pid, tid)){
 			
 			// if we hold the lock then we don't need to get it
-			
+			System.out.println("Held lock");
 		} else {
 			// then we do need to get it.
 			// how do we get it?
-					
+			System.out.println("Didn't hold lock");
 			//System.out.println("Lock was not available");
 			while (!lockHeld){
-				requestLock(tid, pid, mode);
-				//wait();
 				lockHeld = requestLock(tid, pid, mode);
 			}
 		}			 
-		
 	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
@@ -50,54 +50,40 @@ public class LockManager {
 		LinkedList<TransactionStruct> ll = new LinkedList<TransactionStruct>();
 		
 		if (!lockTable.containsKey(pid)){
-			
-			System.out.println("Didn't find '" + pid + "' in lock table");
-			System.out.println(lockTable);
-			// make a new thing, tack it on
-			TransactionStruct newTS = new TransactionStruct(tid, mode, true);
-			
-			ll.add(newTS);
-			lockTable.put(pid, ll);
-			return true;
-			
-		}  else { // lock might be held
-					
-			TransactionStruct ts = new TransactionStruct();
-			Iterator<TransactionStruct> tsIterator = lockTable.get(pid).iterator();
-			while (tsIterator.hasNext()){
-				ts = tsIterator.next();
-				if (ts.transactionId.equals(tid)){ // found ourself waiting in the queue
-					return false;
-				}
-			}
-			
-			// add this to queue
 			TransactionStruct newTS = new TransactionStruct(tid, mode, false);
 			ll.add(newTS);
 			lockTable.put(pid, ll);
-			return false;	
 		}
+		
+		while (lockTable.get(pid).peekFirst() != null){
+			if (lockTable.get(pid).peekFirst().transactionId.equals(tid)){
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public synchronized void releaseLock(PageId pid, TransactionId tid){
 		if (lockTable.containsKey(pid)){
+			System.out.println("contains key");
 			LinkedList<TransactionStruct> LL = lockTable.get(pid);
 			TransactionStruct ts = new TransactionStruct();
 			Iterator<TransactionStruct> llIterator = LL.iterator();
 			while (llIterator.hasNext()){
+				System.out.println("iteratin");
 				ts = llIterator.next();
-				if (ts.lockGranted && ts.transactionId == tid){
+				if (ts.transactionId == tid){ // && ts.lockGranted  
 					//TODO try to get next transaction to run
-					//lockTable.get(pid).remove(ts);
-					lockTable.remove(pid);
-					//llIterator.next().getLock(llIterator.next().transactionId, pid, Permissions.READ_ONLY);
+					System.out.println(lockTable);
+					lockTable.get(pid).remove(ts);
+					System.out.println(lockTable);
 				}
 			}
 		}	
 	}
 	
 	public synchronized boolean holdsLock(PageId pid, TransactionId tid){
-		if (lockTable.contains(pid)){
+		if (lockTable.containsKey(pid)){
 			//System.out.println("holdsLock - contains pid "+lockTable.contains(pid));
 			LinkedList<TransactionStruct> LL = lockTable.get(pid);
 			TransactionStruct ts = new TransactionStruct();
