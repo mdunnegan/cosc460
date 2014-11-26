@@ -46,6 +46,7 @@ public class LockManager {
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
 
+		//System.out.println(mode);
 		if (mode.equals(Permissions.READ_WRITE)){
 			//System.out.println("waitingTxns.size():\t" + waitingTxns.size());
 			//System.out.println("WaitingTxns:\t" + waitingTxns);

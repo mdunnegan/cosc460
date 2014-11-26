@@ -10,7 +10,7 @@ import java.util.*;
 public class SeqScan implements DbIterator {
 
     private static final long serialVersionUID = 1L;
-    private TransactionId trId;
+    //private TransactionId tid;
     private int tableId;
     private String tAlias;
     private DbFile dbTable;
@@ -30,11 +30,10 @@ public class SeqScan implements DbIterator {
      *                   tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-    	trId = tid;
     	tableId = tableid;
     	tAlias = tableAlias;
-    	dbTable = Database.getCatalog().getDatabaseFile(tableid);
-    	iterator = dbTable.iterator(trId);
+    	//dbTable = Database.getCatalog().getDatabaseFile(tableid);
+    	iterator = Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
     }
 
     public SeqScan(TransactionId tid, int tableid) {
@@ -57,7 +56,9 @@ public class SeqScan implements DbIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
+    	System.out.println("open called");
         iterator.open();
+        System.out.println("open happened");
     }
 
     /**

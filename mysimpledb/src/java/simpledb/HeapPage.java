@@ -17,7 +17,7 @@ public class HeapPage implements Page {
     byte header[];
     Tuple tuples[];
     int numSlots;
-    boolean isDirty;
+    boolean isDirty = false;
     TransactionId dirtyId;
     
     byte[] oldData;
@@ -304,7 +304,11 @@ public class HeapPage implements Page {
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        return dirtyId;
+    	if (isDirty){
+            return dirtyId;
+    	} else {
+    		return null;
+    	}
     }
 
     /**

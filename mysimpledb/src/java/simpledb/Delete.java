@@ -13,7 +13,7 @@ public class Delete extends Operator {
     TransactionId trid;
     DbIterator child;
     boolean open;
-    int numTimesFetchNextCalled = 0;
+    int numTimesFetchNextCalled;
     
     /**
      * Constructor specifying the transaction that this delete belongs to as
@@ -25,7 +25,8 @@ public class Delete extends Operator {
     public Delete(TransactionId t, DbIterator child) {
     	this.trid = t;
         this.child = child;
-        this.open = false;        
+        this.open = false;    
+        numTimesFetchNextCalled = 0;
     }
 
     public TupleDesc getTupleDesc() {

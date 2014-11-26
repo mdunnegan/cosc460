@@ -1,14 +1,8 @@
 package simpledb;
 
 import java.io.*;
-import java.security.Permission;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-//import java.util.HashMap;
-//import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+
 
 import java.util.List;
 
@@ -92,27 +86,28 @@ public class BufferPool {
     	lockManager.getLock(tid, pid, perm);
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
-    			timeSinceUse.set(i, (long) 0);
+    			//timeSinceUse.set(i, (long) 0);
     			return pages.get(i);
     		}
     	}
     	
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
+    		System.out.println("attempted eviction");
     		evictPage(); // evicts LRU page
     		// should probably also remove elements from the the timestamp list, and the page array
     	}
     	
     	// get the page from the catalog
-    	DbFile dbfile = Database.getCatalog().getDatabaseFile(pid.getTableId());
-    	
-    	HeapPage newPage = (HeapPage) dbfile.readPage(pid);
-    	
-    	// These better line up...
-    	pages.add(newPage);
-    	timeSinceUse.add(System.currentTimeMillis());
+    	// why this null, yo
+    	System.out.println("In bufferpool trying to read a page");
+    	Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
     	    	
-        return newPage;
+    	// These better line up...
+    	pages.add(page);
+    	//timeSinceUse.add(System.currentTimeMillis());
+    	System.out.println(page);
+        return page;
     }
 
     /**
@@ -133,10 +128,8 @@ public class BufferPool {
      *
      * @param tid the ID of the transaction requesting the unlock
      */
-    // does it mean to be called completeTransaction? ..
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        transactionComplete(tid, true);                                                    // cosc460
     }
 
     /**
@@ -155,8 +148,21 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        
+    	if (commit){
+    		flushPages(tid);
+    	} else {
+    		// all pages that are dirtied by this txn will be replaced by their Catalog version
+    		
+    		Catalog c = Database.getCatalog();
+    		
+    		for (Page p : pages){
+    			if (p.isDirty() == tid){ // dirtied by this txn
+    				p = c.getDatabaseFile(p.getId().getTableId()).readPage(p.getId());
+
+    			}
+    		}
+    	}
     }
 
     /**
@@ -178,22 +184,27 @@ public class BufferPool {
         
     	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
     	HeapFile hf = (HeapFile) f;
+    	ArrayList<Page> dirtiedPages = f.insertTuple(tid, t);
     	
-    	// 1 element, but insert returns an array...
-    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t);
     	
-    	dirtiedPage.get(0).markDirty(true, tid);
+    	for (int i = 0; i < dirtiedPages.size(); i++) {
+    		dirtiedPages.get(0).markDirty(true, tid);
+    	}
     	
-    	// updates the pool
-    	// Should this be heapfile insert?
-//    	int i = 0;
-//    	for (Page p : pages){
-//    		if (p.getId() == dirtiedPage.get(0).getId()){
-//    			//pages.set(i, dirtiedPage.get(0));
-//    		}
-//    		i++;
-//    	}
-    	hf.deleteTuple(tid, t);
+    	
+    	//dirtiedPage.get(0).markDirty(true, tid);
+    	//dirtiedPage.get(0).markDirty(true, tid);
+    	
+    	hf.insertTuple(tid, t);
+
+    	// new stuff
+//    	HeapFile f = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+//    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t);
+//        dirtiedPage.get(0).markDirty(true, tid);
+//        
+//        pages.remove(dirtiedPage.get(0));
+//        pages.add(dirtiedPage.get(0));
+        
     }
 
     /**
@@ -211,31 +222,10 @@ public class BufferPool {
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         
-    	int tableId = t.getRecordId().getPageId().getTableId();
-    	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
-    	
-    	HeapFile hf = (HeapFile) f;
-    	System.out.println("Calling HeapFile delete tuple from BP");
-    	hf.deleteTuple(tid, t);
-    	
-    	//int i = 0;
-    	for (Page p : pages){
-    		
-    		if (p.getId().getTableId() == tableId){   			
-    			
-    			// Heapfile.deleteTuple
-    			
-    			// mark dirty
-    			//hf.deleteTuple(tid, t);
-    			p.markDirty(true, tid);
-//    			//HeapPage hp = (HeapPage) p;
-//    			//hp.deleteTuple(t);
-//    			
-//    			//hf.deleteTuple(tid, t);
-//    			timeSinceUse.set(i, (long) 0);
-    		}
-//    		i++;
-    	}  	
+    	PageId pid = t.getRecordId().getPageId();
+    	HeapPage p = (HeapPage)Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+    	p.markDirty(true, tid);
+    	p.deleteTuple(t);
     }
 
     /**
@@ -245,7 +235,9 @@ public class BufferPool {
      */
     public synchronized void flushAllPages() throws IOException {
         for (Page p : pages){
-        	flushPage(p.getId());
+        	if (p.isDirty() != null){
+        		flushPage(p.getId());
+        	}
         }
     }
 
@@ -298,9 +290,9 @@ public class BufferPool {
     	int lruIndex = 0;
     	
     	for (int i = 0; i < pages.size(); i++){
-    		if (timeSinceUse.get(i) > timeSinceUse.get(lruIndex)){
-    			lruIndex = i;
-    		}
+//    		if (timeSinceUse.get(i) > timeSinceUse.get(lruIndex)){
+//    			lruIndex = i;
+//    		}
     	}
     	
     	// evict page at lruIndex
