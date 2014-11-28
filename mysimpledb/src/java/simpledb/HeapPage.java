@@ -255,7 +255,7 @@ public class HeapPage implements Page {
     	if (isSlotUsed(tupleNum) == false){
     		throw new DbException("Tuple was already empty");
     	}
-    	System.out.println("Effectively deleting a tuple here");
+    	//System.out.println("Effectively deleting a tuple here");
     	markSlotUsed(tupleNum, false);
     }
 
@@ -346,6 +346,7 @@ public class HeapPage implements Page {
     		return true;
     	}
     	return false;
+    	
     }
 
     /**
@@ -385,8 +386,16 @@ public class HeapPage implements Page {
     	//public boolean iteratorOpen;
     	
     	public boolean hasNext() {
+    		
+    		///System.out.println("HeapPAgeIterator numSlots: "+numSlots);
+    		
+    		
     		for (int i = tupleIndex; i < numSlots; i++) {
-    			if (isSlotUsed(i)) {
+    			
+    			//System.out.println("Tuple at position "+ i + ": "+tuples[i]);
+    			
+    			if (isSlotUsed(i)) { // if a slot is occupied, it has a tuple
+    				//System.out.println("Slot at "+i+" is occupied");
     				tupleIndex = i;
     				return true;
     			}
@@ -401,13 +410,15 @@ public class HeapPage implements Page {
     		if (!hasNext()){
     			throw new RuntimeException("No next tuple");
     		}
-    		Tuple next = tuples[tupleIndex++];
+    		tupleIndex++;
+    		Tuple next = tuples[tupleIndex-1];
+    		
     		return next;
     	}
 
 		@Override
 		public void remove() {
-			// stub
+
 		}
     }   	
     

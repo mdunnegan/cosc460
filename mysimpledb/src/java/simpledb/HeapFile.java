@@ -69,9 +69,9 @@ public class HeapFile implements DbFile {
     	//BufferedInputStream data;
     	    	
     		try {
-    			System.out.println("0");
+    			//System.out.println("0");
 				BufferedInputStream data = new BufferedInputStream(new FileInputStream(file));
-				System.out.println("1");
+				//System.out.println("1");
 				data.skip(pageSize * pageNumber);
 	    		//System.out.println("2");
 	    		data.read(byteArray);
@@ -155,7 +155,7 @@ public class HeapFile implements DbFile {
     	Page p = b.getPage(tid, rid.getPageId(), Permissions.READ_WRITE);
     	HeapPage hp = (HeapPage) p;
     	
-    	System.out.println("Calling HeapPage delete tuple from HF");
+    	//System.out.println("Calling HeapPage delete tuple from HF");
     	hp.deleteTuple(t);
     	return returnArray; 
     }
@@ -185,30 +185,38 @@ public class HeapFile implements DbFile {
 		@Override
 		public boolean hasNext() throws TransactionAbortedException, DbException {
 			
-			System.out.println("Checking next...");
+			//System.out.println("Checking next (of heapfile iterator)...");
 			
-			if (!iteratorOpen){
-				throw new TransactionAbortedException();
+			if (iteratorOpen == false){
+//				throw new TransactionAbortedException();
+				return false;
 			}
+			
+			//System.out.println("pageNum:"+pageNum);
+			//System.out.println("numPages:"+numPages());
+			
 			if (tuples.hasNext()){
-				System.out.println("returns true");
+				//System.out.println("returns true by tuples.hasNext");
+				// happening too much! 
+				// could be returning true for empty tuples
 				return true;
 			}
-			if (pageNum < numPages()){
-				while (pageNum < numPages()-1){
-					pageNum++;
-					HeapPageId hpid = new HeapPageId(hf.getId(), pageNum);
-					HeapPage hp = (HeapPage) bp.getPage(transactionId, hpid, Permissions.READ_ONLY);
-					tuples = hp.iterator();
-	
-					if (tuples.hasNext()){
-						System.out.println("returns true");
-						return true;
-					}
+			
+			pageNum++;
+			HeapPageId hpid = null;
+			while (pageNum < numPages()){
+				System.out.println("Does it ever even get here? (no)");
+				hpid = new HeapPageId(hf.getId(), pageNum);
+				HeapPage hp = (HeapPage) bp.getPage(transactionId, hpid, Permissions.READ_ONLY);
+				tuples = hp.iterator();
+
+				if (tuples.hasNext()){
+					return true;
 				}
+				pageNum++;
 			}
-			// release lock
-			System.out.println("returns false");
+		
+			//bp.getLockManager().releaseLock(bp.getPage(transactionId, hpid, Permissions.READ_ONLY).getId(), transactionId);
 			return false;	
 		}
 
@@ -226,10 +234,13 @@ public class HeapFile implements DbFile {
 		@Override
 		public void open() throws DbException, TransactionAbortedException {
 			pageNum = 0;
+			//System.out.println("1");
 			HeapPageId hpid = new HeapPageId(hf.getId(), pageNum);
+			//System.out.println("In heapfile iterator open, calling getPage");
 			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, hpid, Permissions.READ_ONLY);			
-			
+			//System.out.println("3");
 			tuples = firstPage.iterator();
+			//System.out.println("4");
 			iteratorOpen = true;
 		}
 

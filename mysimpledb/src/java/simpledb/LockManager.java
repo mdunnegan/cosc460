@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
 		
@@ -26,7 +25,7 @@ public class LockManager {
 		//System.out.println("lockHeld:\t" + lockHeld);
 			
 		// if we hold the lock
-		if (holdsLock(pid, tid)){
+		if (holdsLock(tid, pid)){
 			
 			// might want to upgrade...
 			
@@ -48,6 +47,9 @@ public class LockManager {
 
 		//System.out.println(mode);
 		if (mode.equals(Permissions.READ_WRITE)){
+			
+			System.out.println("Trying to get an exclusive lock");
+			
 			//System.out.println("waitingTxns.size():\t" + waitingTxns.size());
 			//System.out.println("WaitingTxns:\t" + waitingTxns);
 			//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
@@ -66,14 +68,20 @@ public class LockManager {
 					waitingTxns.get(pid).add(tid);
 				}
 			}
+			
+			System.out.println(lockTable.get(pid));
+			
 			if (lockTable.containsKey(pid)){
-				if (lockTable.get(pid).tids.size() > 0){			
+				if (lockTable.get(pid).tids.size() > 0){	
+					System.out.println("fucking up 1");
 					return false;			
 				} else {			
+					
 					// nobody is in the array! we can get the lock and return true
 					lockTable.get(pid).tids.add(0, tid);
 					lockTable.get(pid).lockType = true;
 					//System.out.println("%return true");
+					System.out.println("Got the write lock...");
 					return true;
 				}
 			} else {
@@ -126,7 +134,23 @@ public class LockManager {
 		}
 	}
 	
-	public synchronized boolean holdsLock(PageId pid, TransactionId tid){
+	public void releaseLocksAndRequests(TransactionId tid){
+		
+		for (PageId p : lockTable.keySet()){
+			releaseLock(p, tid);
+		}
+		
+		for (PageId p : waitingTxns.keySet()){
+			
+			for (TransactionId t : waitingTxns.get(p)){
+				if (t.equals(tid)){
+					waitingTxns.get(p).remove(t);
+				}
+			}
+		}	
+	}
+	
+	public synchronized boolean holdsLock(TransactionId tid, PageId pid){
 
 		if (lockTable.containsKey(pid) && lockTable.get(pid).tids.size() > 0){	
 			if (lockTable.get(pid).tids.contains(tid)){

@@ -33,7 +33,7 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
     private List<Page> pages;
-    private List<Long> timeSinceUse;
+    private List<Long> timeStamps;
     private LockManager lockManager;
         
     /**
@@ -43,7 +43,7 @@ public class BufferPool {
      */
     public BufferPool(int np) {
     	pages = new ArrayList<Page>();
-    	timeSinceUse = new ArrayList<Long>();
+    	timeStamps = new ArrayList<Long>();
     	numPages = np;
     	lockManager = new LockManager();
     }
@@ -83,10 +83,12 @@ public class BufferPool {
 
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException { 
     	
+    	System.out.println("in getpage");
     	lockManager.getLock(tid, pid, perm);
+    	System.out.println("got lock");
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
-    			//timeSinceUse.set(i, (long) 0);
+    			timeStamps.set(i, (long) 0);
     			return pages.get(i);
     		}
     	}
@@ -99,14 +101,14 @@ public class BufferPool {
     	}
     	
     	// get the page from the catalog
-    	// why this null, yo
-    	System.out.println("In bufferpool trying to read a page");
+    	//System.out.println("In bufferpool trying to read a page");
     	Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
     	    	
     	// These better line up...
     	pages.add(page);
-    	//timeSinceUse.add(System.currentTimeMillis());
-    	System.out.println(page);
+    	timeStamps.add( (long) System.currentTimeMillis());
+    	
+    	//System.out.println(page);
         return page;
     }
 
@@ -136,7 +138,7 @@ public class BufferPool {
      * Return true if the specified transaction has a lock on the specified page
      */
     public boolean holdsLock(TransactionId tid, PageId pid) {                                                     // cosc460
-        return lockManager.holdsLock(pid, tid);
+        return lockManager.holdsLock(tid, pid);
     }
 
     /**
@@ -151,6 +153,7 @@ public class BufferPool {
         
     	if (commit){
     		flushPages(tid);
+    		
     	} else {
     		// all pages that are dirtied by this txn will be replaced by their Catalog version
     		
@@ -159,10 +162,15 @@ public class BufferPool {
     		for (Page p : pages){
     			if (p.isDirty() == tid){ // dirtied by this txn
     				p = c.getDatabaseFile(p.getId().getTableId()).readPage(p.getId());
-
+    				releasePage(tid, p.getId());
+    				// also drop lock requests
+    				//lockManager.releaseLocksAndRequests(tid);
     			}
     		}
     	}
+    	
+    	lockManager.releaseLocksAndRequests(tid);
+    	//System.out.println("Finished transactionComplete");
     }
 
     /**
@@ -195,7 +203,7 @@ public class BufferPool {
     	//dirtiedPage.get(0).markDirty(true, tid);
     	//dirtiedPage.get(0).markDirty(true, tid);
     	
-    	hf.insertTuple(tid, t);
+    	//hf.insertTuple(tid, t);
 
     	// new stuff
 //    	HeapFile f = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
@@ -264,6 +272,7 @@ public class BufferPool {
     	for (Page p : pages){
     		if (p.getId().equals(pid)){
     			toFlush = p;
+    			
     		}
     	}
     	
@@ -277,8 +286,15 @@ public class BufferPool {
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        //
+    	for (Page p : pages){
+    		if (p.isDirty() != null){
+	    			if (p.isDirty().equals(tid)){
+	    			flushPage(p.getId());
+	    			releasePage(tid, p.getId());
+    			}
+    		}
+    	}
     }
 
     /**
@@ -287,12 +303,22 @@ public class BufferPool {
      */
     private synchronized void evictPage() throws DbException {
 
+    	// we have an array of pages. 
+    	
+    	
     	int lruIndex = 0;
+    	long earliest = Long.MAX_VALUE;
     	
     	for (int i = 0; i < pages.size(); i++){
-//    		if (timeSinceUse.get(i) > timeSinceUse.get(lruIndex)){
-//    			lruIndex = i;
-//    		}
+    		if (timeStamps.get(i) < earliest){
+    			if (pages.get(i) != null){
+    				lruIndex = i;
+    			}
+    		}
+    	}
+    	
+    	if (lruIndex == 0){
+    		throw new DbException("All pages are dirty, cannot evict a page");
     	}
     	
     	// evict page at lruIndex
@@ -301,6 +327,7 @@ public class BufferPool {
     	try {
     		this.flushPage(hp.getId());
     		pages.remove(hp);
+    		timeStamps.remove(lruIndex);
     	} catch (IOException e) {
     		throw new DbException("Page wasn't flushed or evicted");
     	}	

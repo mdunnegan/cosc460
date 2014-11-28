@@ -42,16 +42,25 @@ public abstract class FilterBase extends SimpleDbTestBase {
                                    Predicate.Op operation) throws IOException, DbException, TransactionAbortedException {
         // Test the true value
         HeapFile f = createTable(column, columnValue);
+        System.out.println("1");
         Predicate predicate = new Predicate(column, operation, new IntField(trueValue));
+        System.out.println("2");
         assertEquals(ROWS, runTransactionForPredicate(f, predicate));
+        System.out.println("3");
         f = Utility.openHeapFile(COLUMNS, f.getFile());
+        System.out.println("4");
         validateAfter(f);
 
         // Test the false value
+        System.out.println("5");
         f = createTable(column, columnValue);
+        System.out.println("6");
         predicate = new Predicate(column, operation, new IntField(falseValue));
+        System.out.println("7");
         assertEquals(0, runTransactionForPredicate(f, predicate));
+        System.out.println("8");
         f = Utility.openHeapFile(COLUMNS, f.getFile());
+        System.out.println("9");
         validateAfter(f);
     }
 

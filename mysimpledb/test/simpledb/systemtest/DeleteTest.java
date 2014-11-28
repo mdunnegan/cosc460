@@ -23,6 +23,7 @@ public class DeleteTest extends FilterBase {
         boolean hasResult = false;
         int result = -1;
         while (deleteOperator.hasNext()) {
+        	System.out.println("deleteOperator hasNExt forever");
             Tuple t = deleteOperator.next();
             assertFalse(hasResult);
             hasResult = true;

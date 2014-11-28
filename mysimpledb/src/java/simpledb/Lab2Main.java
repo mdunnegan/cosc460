@@ -15,7 +15,7 @@ public class Lab2Main {
 		HeapFile hf = new HeapFile(f, td);
 		Database.getCatalog().addTable(hf);
 		DbFileIterator hfIterator = hf.iterator(new TransactionId());
-
+		
 		try {
 			hfIterator.open();
 			int i = 0;

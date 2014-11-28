@@ -102,38 +102,83 @@ public class SystemTestUtil {
             throws DbException, TransactionAbortedException, IOException {
         TransactionId tid = new TransactionId();
         matchTuples(f, tid, tuples);
+        System.out.println("ah");
         Database.getBufferPool().transactionComplete(tid);
+        System.out.println("boop");
     }
 
     public static void matchTuples(DbFile f, TransactionId tid, List<ArrayList<Integer>> tuples)
             throws DbException, TransactionAbortedException, IOException {
+    	//System.out.println("matchTuples1");
+    	
+    	// Could be a SeqScan issue
         SeqScan scan = new SeqScan(tid, f.getId(), "");
         matchTuples(scan, tuples);
     }
 
+    							   // a seqscan
     public static void matchTuples(DbIterator iterator, List<ArrayList<Integer>> tuples)
             throws DbException, TransactionAbortedException, IOException {
-        ArrayList<ArrayList<Integer>> copy = new ArrayList<ArrayList<Integer>>(tuples);
-
+    	//System.out.println("matchTuples2");
+    	
+    	ArrayList<ArrayList<Integer>> copy = new ArrayList<ArrayList<Integer>>(tuples);
+    	//System.out.println(copy.size());
+    	//System.out.println(copy.toString()); // array of 1 tuple! seems legit
+    	
+    	System.out.println("ok");
         if (Debug.isEnabled()) {
+    	//if (true){
             Debug.log("Expected tuples:");
+    		//System.out.println("Expected tuples:");
             for (ArrayList<Integer> t : copy) {
+            	//System.out.println("t\t" + t.toString());
                 Debug.log("\t" + Utility.listToString(t));
+            	//System.out.println("\t" + Utility.listToString(t));
             }
         }
-
-        iterator.open();
-        while (iterator.hasNext()) {
+    	
+    	//System.out.println(iterator.toString());
+    	
+    	System.out.println("opening...");
+    	iterator.open();
+    	System.out.println("iterator opened");
+        
+        // this is executing one more time than it should ()
+    	// since there is one element, this should only 'haveNext' once!
+    	int i = 0;
+        //while (iterator.hasNext()) { // too permeable
+    	while(iterator.hasNext()){
+        	System.out.println("iteraton:"+i);
+        	i++;
+        	
             Tuple t = iterator.next();
+            //System.out.println("next? "+iterator.hasNext());
+            //System.out.println(t.toString());
+            //System.out.println("t\t" + t.toString()); // looks like t should not exist, but it does
+            								  // Or
+            								  // t should exist, but it doesn't
+            
             ArrayList<Integer> list = tupleToList(t);
+            
+            //System.out.println("copybefore:\t"+copy);
+            
             boolean isExpected = copy.remove(list);
-            Debug.log("scanned tuple: %s (%s)", t, isExpected ? "expected" : "not expected");
+            
+            //System.out.println("copyafter:\t"+copy);
+            
+            //Debug.log("scanned tuple: %s (%s)", t, isExpected ? "expected" : "not expected");
+            //System.out.println("isExpected:\t"+isExpected);
+            
             if (!isExpected) {
                 Assert.fail("expected tuples does not contain: " + t);
             }
+            
+            // running this points me to heapFile.iterator(). Nope, seqscan. ...
+            // it was bufferpool!
+            
         }
         iterator.close();
-
+        
         if (!copy.isEmpty()) {
             String msg = "expected to find the following tuples:\n";
             final int MAX_TUPLES_OUTPUT = 10;

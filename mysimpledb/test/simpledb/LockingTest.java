@@ -66,8 +66,15 @@ public class LockingTest extends TestUtil.CreateHeapFile {
             TransactionId tid2, PageId pid2, Permissions perm2,
             boolean expected) throws Exception {
 
-        bp.getPage(tid1, pid1, perm1);
+        bp.getPage(tid1, pid1, perm1); // gets p1 with t1
+        
+        //System.out.println("locktable from first thing: " + bp.getLockManager().lockTable);
+        
+        //System.out.println("Calling grabLock");
         grabLock(tid2, pid2, perm2, expected);
+        
+        //System.out.println("locktable from second thing: " + bp.getLockManager().lockTable);
+        
     }
 
     /**
@@ -88,6 +95,8 @@ public class LockingTest extends TestUtil.CreateHeapFile {
 
         // if we don't have the lock after TIMEOUT, we assume blocking.
         Thread.sleep(TIMEOUT);
+        
+        //System.out.println(t.acquired);
         assertEquals(expected, t.acquired());
         assertNull(t.getError());
 
@@ -100,9 +109,10 @@ public class LockingTest extends TestUtil.CreateHeapFile {
      * Acquires a read lock and a write lock on the same page, in that order.
      */
     @Test
-    public void acquireWriteLocksOnSamePage() throws Exception {
-        metaLockTester(tid1, p0, Permissions.READ_WRITE,
-                tid2, p0, Permissions.READ_WRITE, false);
+    public void acquireWriteLocksOnSamePage() throws Exception {    	
+    	// different transaction, same page. Not allowed
+    	//System.out.println("Calling metaLockTester");
+    	metaLockTester(tid1, p0, Permissions.READ_WRITE, tid2, p0, Permissions.READ_WRITE, false);
     }
 
     /**
@@ -111,8 +121,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
      */
     @Test
     public void acquireWriteLocksOnTwoPages() throws Exception {
-        metaLockTester(tid1, p0, Permissions.READ_WRITE,
-                tid2, p1, Permissions.READ_WRITE, true);
+        metaLockTester(tid1, p0, Permissions.READ_WRITE, tid2, p1, Permissions.READ_WRITE, true);
     }
 
     /**
@@ -123,11 +132,16 @@ public class LockingTest extends TestUtil.CreateHeapFile {
     @Test
     public void acquireThenRelease() throws Exception {
         bp.getPage(tid1, p0, Permissions.READ_WRITE);
+        //System.out.println(bp.getLockManager().lockTable);
+        //System.out.println(p0);
         bp.releasePage(tid1, p0);
+        //System.out.println(bp.getLockManager().lockTable);
         grabLock(tid2, p0, Permissions.READ_WRITE, true);
 
         bp.getPage(tid2, p1, Permissions.READ_WRITE);
+        //System.out.println(bp.getLockManager().lockTable);
         bp.releasePage(tid2, p1);
+        //System.out.println(bp.getLockManager().lockTable);
         grabLock(tid1, p1, Permissions.READ_WRITE, true);
     }
 

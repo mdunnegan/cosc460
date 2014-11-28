@@ -27,12 +27,15 @@ public class TransactionTestUtil {
         insert.close();
     }
 
-    public static boolean findMagicTuple(HeapFile f, Transaction t)
-            throws DbException, TransactionAbortedException {
-        SeqScan ss = new SeqScan(t.getId(), f.getId(), "");
+    public static boolean findMagicTuple(HeapFile f, Transaction t) throws DbException, TransactionAbortedException {
+        System.out.println("calls it");
+    	SeqScan ss = new SeqScan(t.getId(), f.getId(), "");
+    	System.out.println("Makes a seq scan");
         boolean found = false;
         ss.open();
+        System.out.println("opens it");
         while (ss.hasNext()) {
+        	//System.out.println("This will have to end at some point");
             Tuple v = ss.next();
             int v0 = ((IntField) v.getField(0)).getValue();
             int v1 = ((IntField) v.getField(1)).getValue();
@@ -41,6 +44,7 @@ public class TransactionTestUtil {
                 found = true;
             }
         }
+        System.out.println("Done looping");
         ss.close();
         return found;
     }

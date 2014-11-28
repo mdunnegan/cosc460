@@ -13,7 +13,6 @@ public class SeqScan implements DbIterator {
     //private TransactionId tid;
     private int tableId;
     private String tAlias;
-    private DbFile dbTable;
     private DbFileIterator iterator;
     
     /**
@@ -56,9 +55,7 @@ public class SeqScan implements DbIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
-    	System.out.println("open called");
         iterator.open();
-        System.out.println("open happened");
     }
 
     /**
