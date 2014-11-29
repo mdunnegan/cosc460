@@ -18,6 +18,15 @@ public class LockManager {
 	HashMap<PageId, LinkedList<TransactionId>> waitingTxns = new HashMap<PageId, LinkedList<TransactionId>>();
 	
 	// this method gets called by bufferpool
+	
+	public HashMap<PageId, LockEntry> getlockTable(){
+		return lockTable;
+	}
+	
+	public HashMap<PageId, LinkedList<TransactionId>> getWaitingTxns(){
+		return waitingTxns;
+	}
+	
 	public void getLock(TransactionId tid, PageId pid, Permissions mode){
 
 		// determines availability of the lock for anyone
@@ -73,23 +82,25 @@ public class LockManager {
 			
 			if (lockTable.containsKey(pid)){
 				if (lockTable.get(pid).tids.size() > 0){	
-					System.out.println("fucking up 1");
 					return false;			
 				} else {			
 					
 					// nobody is in the array! we can get the lock and return true
 					lockTable.get(pid).tids.add(0, tid);
-					lockTable.get(pid).lockType = true;
+					lockTable.get(pid).lockType = true; // exclusive
 					//System.out.println("%return true");
 					System.out.println("Got the write lock...");
 					return true;
 				}
 			} else {
 				LockEntry entry = new LockEntry();
-				lockTable.put(pid, entry);		
+				lockTable.put(pid, entry);
 				return false;
 			}
 		} else {
+			
+			// acquiring read only lock
+			
 			//System.out.println("waitingTxns.size():\t" + waitingTxns.size());
 			//System.out.println("WaitingTxns:\t" + waitingTxns);
 			//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
@@ -108,9 +119,11 @@ public class LockManager {
 				}
 			}
 			if (lockTable.containsKey(pid)){
-							
+											
 				// someone has an exclusive lock!
 				if (lockTable.get(pid).lockType == true){
+					
+					// some jerk isn't giving it up
 					return false;
 				}
 				
@@ -125,19 +138,33 @@ public class LockManager {
 		}
 	}
 	
-	
-	public synchronized void releaseLock(PageId pid, TransactionId tid){		
+	public synchronized void releaseLock(PageId pid, TransactionId tid){
+		System.out.println("ReleaseLock called");
 		if (lockTable.containsKey(pid)){
+			//System.out.println(lockTable.get(pid).tids.toArray());
 			lockTable.get(pid).tids.remove(tid);
+			
+			// This was the bug!!
+			lockTable.get(pid).lockType = false;
+			
+			//System.out.println(lockTable.get(pid).tids.toArray());
 		} else {
 			System.out.println("No threads held this lock");
 		}
 	}
 	
+	// gets called following a transaction, probably
 	public void releaseLocksAndRequests(TransactionId tid){
 		
+		//releaseLock(p, tid);
+		
+		System.out.println("ReleaseLocksAndRequestsCalled");
 		for (PageId p : lockTable.keySet()){
-			releaseLock(p, tid);
+			if (lockTable.get(p).tids.contains(tid)){
+				releaseLock(p, tid);
+				//lockTable.get(p).tids.remove(tid);
+			}
+			
 		}
 		
 		for (PageId p : waitingTxns.keySet()){
@@ -147,7 +174,7 @@ public class LockManager {
 					waitingTxns.get(p).remove(t);
 				}
 			}
-		}	
+		}
 	}
 	
 	public synchronized boolean holdsLock(TransactionId tid, PageId pid){
