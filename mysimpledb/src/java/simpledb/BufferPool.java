@@ -5,6 +5,13 @@ import java.util.ArrayList;
 
 
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import com.sun.corba.se.impl.orbutil.closure.Future;
+import com.sun.corba.se.impl.orbutil.threadpool.TimeoutException;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -84,8 +91,16 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException { 
     	
     	System.out.println("in getpage");
+    	
+    	// basically if getLock takes too long we'll kill it
+//    	if (!lockManager.getLock(tid, pid, perm)){
+//    		throw new TransactionAbortedException();
+//    	}
+    	
     	lockManager.getLock(tid, pid, perm);
+    	
     	System.out.println("got lock");
+    	
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
     			timeStamps.set(i, (long) 0);
@@ -96,19 +111,16 @@ public class BufferPool {
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
     		System.out.println("attempted eviction");
-    		evictPage(); // evicts LRU page
-    		// should probably also remove elements from the the timestamp list, and the page array
+    		evictPage();
     	}
     	
     	// get the page from the catalog
-    	//System.out.println("In bufferpool trying to read a page");
     	Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
     	    	
     	// These better line up...
     	pages.add(page);
     	timeStamps.add( (long) System.currentTimeMillis());
     	
-    	//System.out.println(page);
         return page;
     }
 
@@ -148,10 +160,14 @@ public class BufferPool {
      * @param tid    the ID of the transaction requesting the unlock
      * @param commit a flag indicating whether we should commit or abort
      */
-    public void transactionComplete(TransactionId tid, boolean commit)
-            throws IOException {
+    public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
         
+    	System.out.println("before");
+    	//System.out.println(lockManager.getlockTable().get(0));
+    	
+    	System.out.println("Completing txns");
     	if (commit){
+    		System.out.println("committing");
     		flushPages(tid);
     		
     	} else {
@@ -164,12 +180,17 @@ public class BufferPool {
     				p = c.getDatabaseFile(p.getId().getTableId()).readPage(p.getId());
     				releasePage(tid, p.getId());
     				// also drop lock requests
-    				//lockManager.releaseLocksAndRequests(tid);
+    				//ockManager.releaseLocksAndRequests(tid);
     			}
     		}
     	}
     	
     	lockManager.releaseLocksAndRequests(tid);
+    	
+    	//System.out.println("after");
+    	//System.out.println(lockManager.getlockTable().size());
+    	
+    	
     	//System.out.println("Finished transactionComplete");
     }
 
@@ -191,28 +212,12 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         
     	DbFile f = Database.getCatalog().getDatabaseFile(tableId);
-    	HeapFile hf = (HeapFile) f;
+    	//HeapFile hf = (HeapFile) f;
     	ArrayList<Page> dirtiedPages = f.insertTuple(tid, t);
     	
-    	
     	for (int i = 0; i < dirtiedPages.size(); i++) {
-    		dirtiedPages.get(0).markDirty(true, tid);
+    		dirtiedPages.get(i).markDirty(true, tid); // changed 0 to i
     	}
-    	
-    	
-    	//dirtiedPage.get(0).markDirty(true, tid);
-    	//dirtiedPage.get(0).markDirty(true, tid);
-    	
-    	//hf.insertTuple(tid, t);
-
-    	// new stuff
-//    	HeapFile f = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
-//    	ArrayList<Page> dirtiedPage = f.insertTuple(tid, t);
-//        dirtiedPage.get(0).markDirty(true, tid);
-//        
-//        pages.remove(dirtiedPage.get(0));
-//        pages.add(dirtiedPage.get(0));
-        
     }
 
     /**
@@ -271,12 +276,11 @@ public class BufferPool {
     	
     	for (Page p : pages){
     		if (p.getId().equals(pid)){
+    			System.out.println("***pgtoflush");
     			toFlush = p;
-    			
     		}
     	}
-    	
-    	// write it to a specific table
+
     	DbFile table = Database.getCatalog().getDatabaseFile(pid.getTableId());
     	table.writePage(toFlush);
     	toFlush.markDirty(false, new TransactionId());
@@ -289,9 +293,8 @@ public class BufferPool {
         //
     	for (Page p : pages){
     		if (p.isDirty() != null){
-	    			if (p.isDirty().equals(tid)){
+	    		if (p.isDirty().equals(tid)){
 	    			flushPage(p.getId());
-	    			releasePage(tid, p.getId());
     			}
     		}
     	}
@@ -302,9 +305,6 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-
-    	// we have an array of pages. 
-    	
     	
     	int lruIndex = 0;
     	long earliest = Long.MAX_VALUE;
@@ -325,12 +325,11 @@ public class BufferPool {
     	HeapPage hp = (HeapPage) pages.get(lruIndex);
     	
     	try {
-    		this.flushPage(hp.getId());
+    		flushPage(hp.getId());
     		pages.remove(hp);
     		timeStamps.remove(lruIndex);
     	} catch (IOException e) {
     		throw new DbException("Page wasn't flushed or evicted");
     	}	
-    }
-    
+    } 
 }

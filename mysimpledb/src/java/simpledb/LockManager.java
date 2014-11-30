@@ -29,51 +29,49 @@ public class LockManager {
 	
 	public void getLock(TransactionId tid, PageId pid, Permissions mode){
 
-		// determines availability of the lock for anyone
-		//boolean lockHeld = requestLock(tid, pid, mode);
-		//System.out.println("lockHeld:\t" + lockHeld);
-			
-		// if we hold the lock
 		if (holdsLock(tid, pid)){
-			
-			// might want to upgrade...
-			
-			// if we hold a read lock
-				// if the size of the waiting list is 0...
-			
-			
-			// if some other txn holds the lock, we're waiting!
+			// nothing!
 		} else {
-			//System.out.println("Begin the infinite loop of lock searching!");
 			boolean lockHeld = requestLock(tid, pid, mode);
 			while (!lockHeld){
 				lockHeld = requestLock(tid, pid, mode);
 			}
 		}			 
 	}
+	
+//	public boolean getLock(TransactionId tid, PageId pid, Permissions mode){
+//		if (holdsLock(tid, pid)){
+//			return true;
+//		} else {
+//			
+//			long tStart = System.currentTimeMillis();
+//			boolean lockHeld = requestLock(tid, pid, mode);
+//			while (!lockHeld){
+//				if (System.currentTimeMillis() - tStart > 2000){
+//					System.out.println("Timed out!");
+//					return false;
+//				}
+//				lockHeld = requestLock(tid, pid, mode);
+//				tStart = System.currentTimeMillis() - tStart;
+//			}
+//			return true;
+//		}			 
+//		
+//	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
 
-		//System.out.println(mode);
 		if (mode.equals(Permissions.READ_WRITE)){
 			
 			System.out.println("Trying to get an exclusive lock");
-			
-			//System.out.println("waitingTxns.size():\t" + waitingTxns.size());
-			//System.out.println("WaitingTxns:\t" + waitingTxns);
-			//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
+
 			if (!waitingTxns.containsKey(pid)){ // !lockTable.containsKey(pid)
-				//System.out.println("***WaitingTxns did NOT contain pid***");
 				LinkedList<TransactionId> ll = new LinkedList<TransactionId>();
 				ll.add(tid);
 				waitingTxns.put(pid, ll);
-				//System.out.println("Added pid to waitingTxns");
-				//System.out.println("WaitingTxns:\t" + waitingTxns);
-				//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
+
 			} else {
-				//System.out.println("WaitingTxns had pid");	
 				if (!waitingTxns.get(pid).contains(tid)){
-					// TODO add to beginning of queue
 					waitingTxns.get(pid).add(tid);
 				}
 			}
@@ -82,14 +80,10 @@ public class LockManager {
 			
 			if (lockTable.containsKey(pid)){
 				if (lockTable.get(pid).tids.size() > 0){	
-					return false;			
+					return false;	
 				} else {			
-					
-					// nobody is in the array! we can get the lock and return true
 					lockTable.get(pid).tids.add(0, tid);
 					lockTable.get(pid).lockType = true; // exclusive
-					//System.out.println("%return true");
-					System.out.println("Got the write lock...");
 					return true;
 				}
 			} else {
@@ -100,20 +94,12 @@ public class LockManager {
 		} else {
 			
 			// acquiring read only lock
-			
-			//System.out.println("waitingTxns.size():\t" + waitingTxns.size());
-			//System.out.println("WaitingTxns:\t" + waitingTxns);
-			//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
+
 			if (!waitingTxns.containsKey(pid)){ // !lockTable.containsKey(pid)
-				//System.out.println("***WaitingTxns did NOT contain pid***");
 				LinkedList<TransactionId> ll = new LinkedList<TransactionId>();
 				ll.add(tid);
 				waitingTxns.put(pid, ll);
-				//System.out.println("Added pid to waitingTxns");
-				//System.out.println("WaitingTxns:\t" + waitingTxns);
-				//System.out.println("WaitingTxns.get(pid):\t" + waitingTxns.get(pid));
 			} else {
-				//System.out.println("WaitingTxns had pid");	
 				if (!waitingTxns.get(pid).contains(tid)){
 					waitingTxns.get(pid).add(tid);
 				}
@@ -121,14 +107,10 @@ public class LockManager {
 			if (lockTable.containsKey(pid)){
 											
 				// someone has an exclusive lock!
-				if (lockTable.get(pid).lockType == true){
-					
-					// some jerk isn't giving it up
+				if (lockTable.get(pid).lockType == true){					
 					return false;
 				}
-				
 				lockTable.get(pid).tids.add(tid);
-				//System.out.println("%return true");
 				return true;
 			} else {
 				LockEntry entry = new LockEntry();
@@ -141,13 +123,11 @@ public class LockManager {
 	public synchronized void releaseLock(PageId pid, TransactionId tid){
 		System.out.println("ReleaseLock called");
 		if (lockTable.containsKey(pid)){
-			//System.out.println(lockTable.get(pid).tids.toArray());
 			lockTable.get(pid).tids.remove(tid);
 			
 			// This was the bug!!
 			lockTable.get(pid).lockType = false;
 			
-			//System.out.println(lockTable.get(pid).tids.toArray());
 		} else {
 			System.out.println("No threads held this lock");
 		}
@@ -155,20 +135,14 @@ public class LockManager {
 	
 	// gets called following a transaction, probably
 	public void releaseLocksAndRequests(TransactionId tid){
-		
-		//releaseLock(p, tid);
-		
-		System.out.println("ReleaseLocksAndRequestsCalled");
+				
 		for (PageId p : lockTable.keySet()){
 			if (lockTable.get(p).tids.contains(tid)){
 				releaseLock(p, tid);
-				//lockTable.get(p).tids.remove(tid);
 			}
-			
 		}
 		
 		for (PageId p : waitingTxns.keySet()){
-			
 			for (TransactionId t : waitingTxns.get(p)){
 				if (t.equals(tid)){
 					waitingTxns.get(p).remove(t);

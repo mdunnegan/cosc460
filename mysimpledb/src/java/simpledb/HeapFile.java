@@ -205,7 +205,6 @@ public class HeapFile implements DbFile {
 			pageNum++;
 			HeapPageId hpid = null;
 			while (pageNum < numPages()){
-				System.out.println("Does it ever even get here? (no)");
 				hpid = new HeapPageId(hf.getId(), pageNum);
 				HeapPage hp = (HeapPage) bp.getPage(transactionId, hpid, Permissions.READ_ONLY);
 				tuples = hp.iterator();
@@ -216,7 +215,7 @@ public class HeapFile implements DbFile {
 				pageNum++;
 			}
 		
-			//bp.getLockManager().releaseLock(bp.getPage(transactionId, hpid, Permissions.READ_ONLY).getId(), transactionId);
+			// not releasing here
 			return false;	
 		}
 
@@ -227,6 +226,7 @@ public class HeapFile implements DbFile {
         	}
         	if (!hasNext()){
         		throw new NoSuchElementException();
+        		
         	}
         	return tuples.next();
 		}
@@ -236,7 +236,12 @@ public class HeapFile implements DbFile {
 			pageNum = 0;
 			//System.out.println("1");
 			HeapPageId hpid = new HeapPageId(hf.getId(), pageNum);
-			//System.out.println("In heapfile iterator open, calling getPage");
+			System.out.println("In heapfile iterator open, calling getPage");
+			
+			// ATTENTION: InsertTest is failing at getPage in the following line. There is an exclusive
+			// write lock that isn't giving up the lock
+			
+			
 			HeapPage firstPage = (HeapPage) Database.getBufferPool().getPage(transactionId, hpid, Permissions.READ_ONLY);			
 			//System.out.println("3");
 			tuples = firstPage.iterator();
