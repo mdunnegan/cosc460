@@ -96,7 +96,6 @@ public class BufferPool {
 //    	if (!lockManager.getLock(tid, pid, perm)){
 //    		throw new TransactionAbortedException();
 //    	}
-    	
     	lockManager.getLock(tid, pid, perm);
     	
     	System.out.println("got lock");
@@ -162,36 +161,27 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
         
-    	System.out.println("before");
-    	//System.out.println(lockManager.getlockTable().get(0));
-    	
-    	System.out.println("Completing txns");
+//    	System.out.println("before");
+//    	//System.out.println(lockManager.getlockTable().get(0));
+//    	
+//    	System.out.println("Completing txns");
     	if (commit){
     		System.out.println("committing");
     		flushPages(tid);
     		
     	} else {
     		// all pages that are dirtied by this txn will be replaced by their Catalog version
-    		
     		Catalog c = Database.getCatalog();
     		
     		for (Page p : pages){
     			if (p.isDirty() == tid){ // dirtied by this txn
     				p = c.getDatabaseFile(p.getId().getTableId()).readPage(p.getId());
     				releasePage(tid, p.getId());
-    				// also drop lock requests
-    				//ockManager.releaseLocksAndRequests(tid);
     			}
     		}
     	}
     	
     	lockManager.releaseLocksAndRequests(tid);
-    	
-    	//System.out.println("after");
-    	//System.out.println(lockManager.getlockTable().size());
-    	
-    	
-    	//System.out.println("Finished transactionComplete");
     }
 
     /**

@@ -55,8 +55,7 @@ public class LockManager {
 //				tStart = System.currentTimeMillis() - tStart;
 //			}
 //			return true;
-//		}			 
-//		
+//		}			 	
 //	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
@@ -79,8 +78,36 @@ public class LockManager {
 			System.out.println(lockTable.get(pid));
 			
 			if (lockTable.containsKey(pid)){
-				if (lockTable.get(pid).tids.size() > 0){	
-					return false;	
+				
+				/** new
+				**/
+				// if upgradable
+//				if (lockTable.get(pid).tids.size() == 1 && lockTable.get(pid).tids.get(0).equals(tid)){
+//					lockTable.get(pid).lockType = true;
+//					return true;
+//				}
+//				// check for nobody using lock
+//				else if (lockTable.get(pid).tids.size() == 0){
+//					lockTable.get(pid).lockType = true;
+//					return true;
+//				}
+//				else {
+//					// add ourself to beginning of QUEUE
+//					lockTable.get(pid).tids.add(0, tid);
+//					return false;
+//				}
+				
+				
+				/** old
+				**/
+				
+				if (lockTable.get(pid).tids.size() > 0 || lockTable.get(pid).lockType == true){	
+					return false;
+				//
+				} else if (lockTable.get(pid).tids.size() == 1 && lockTable.get(pid).tids.get(0) == tid){
+					lockTable.get(pid).lockType = true;
+					return true;
+				//
 				} else {			
 					lockTable.get(pid).tids.add(0, tid);
 					lockTable.get(pid).lockType = true; // exclusive
@@ -106,8 +133,8 @@ public class LockManager {
 			}
 			if (lockTable.containsKey(pid)){
 											
-				// someone has an exclusive lock!
-				if (lockTable.get(pid).lockType == true){					
+				// someone (who isn't us) has an exclusive lock!
+				if (lockTable.get(pid).lockType == true && !lockTable.get(pid).tids.get(0).equals(tid)){					
 					return false;
 				}
 				lockTable.get(pid).tids.add(tid);
