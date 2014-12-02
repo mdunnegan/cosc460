@@ -2,7 +2,6 @@ package simpledb;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 public class LockManager {
@@ -10,15 +9,12 @@ public class LockManager {
 	public class LockEntry {
 		ArrayList<TransactionId> tids = new ArrayList<TransactionId>();
 		boolean lockType = false; // false = readers only (tids can be any size), true = write lock (tids.size() must be 1)
-		// whatever request is
 	}
 	
 	HashMap<PageId, LockEntry> lockTable = new HashMap<PageId, LockEntry>();
 	
 	HashMap<PageId, LinkedList<TransactionId>> waitingTxns = new HashMap<PageId, LinkedList<TransactionId>>();
-	
-	// this method gets called by bufferpool
-	
+		
 	public HashMap<PageId, LockEntry> getlockTable(){
 		return lockTable;
 	}
@@ -27,102 +23,68 @@ public class LockManager {
 		return waitingTxns;
 	}
 	
-	public void getLock(TransactionId tid, PageId pid, Permissions mode){
-
-		if (holdsLock(tid, pid)){
-			// nothing!
+	public void getLock(TransactionId tid, PageId pid, Permissions mode) throws TransactionAbortedException{
+		if (holdsLock(tid, pid, mode)){
+			System.out.println("held lock");
 		} else {
+			
+			long tStart = System.currentTimeMillis();
 			boolean lockHeld = requestLock(tid, pid, mode);
 			while (!lockHeld){
+				if (System.currentTimeMillis() - tStart > 3000){
+					//System.out.println("Timed out!");
+					throw new TransactionAbortedException();
+				}
 				lockHeld = requestLock(tid, pid, mode);
 			}
-		}			 
+		}			 	
 	}
-	
-//	public boolean getLock(TransactionId tid, PageId pid, Permissions mode){
-//		if (holdsLock(tid, pid)){
-//			return true;
-//		} else {
-//			
-//			long tStart = System.currentTimeMillis();
-//			boolean lockHeld = requestLock(tid, pid, mode);
-//			while (!lockHeld){
-//				if (System.currentTimeMillis() - tStart > 2000){
-//					System.out.println("Timed out!");
-//					return false;
-//				}
-//				lockHeld = requestLock(tid, pid, mode);
-//				tStart = System.currentTimeMillis() - tStart;
-//			}
-//			return true;
-//		}			 	
-//	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
-
+				
 		if (mode.equals(Permissions.READ_WRITE)){
 			
-			System.out.println("Trying to get an exclusive lock");
-
-			if (!waitingTxns.containsKey(pid)){ // !lockTable.containsKey(pid)
+			if (!waitingTxns.containsKey(pid)){
 				LinkedList<TransactionId> ll = new LinkedList<TransactionId>();
-				ll.add(tid);
+				ll.add(0, tid);
 				waitingTxns.put(pid, ll);
-
 			} else {
 				if (!waitingTxns.get(pid).contains(tid)){
-					waitingTxns.get(pid).add(tid);
+					waitingTxns.get(pid).add(0, tid);
 				}
 			}
-			
-			System.out.println(lockTable.get(pid));
-			
+            /** Above: insertion into waitingTxns. Below: insertion into lockTable, and deletion from waitingTxns  **/		
+
 			if (lockTable.containsKey(pid)){
-				
-				/** new
-				**/
-				// if upgradable
-//				if (lockTable.get(pid).tids.size() == 1 && lockTable.get(pid).tids.get(0).equals(tid)){
-//					lockTable.get(pid).lockType = true;
-//					return true;
-//				}
-//				// check for nobody using lock
-//				else if (lockTable.get(pid).tids.size() == 0){
-//					lockTable.get(pid).lockType = true;
-//					return true;
-//				}
-//				else {
-//					// add ourself to beginning of QUEUE
-//					lockTable.get(pid).tids.add(0, tid);
-//					return false;
-//				}
-				
-				
-				/** old
-				**/
-				
-				if (lockTable.get(pid).tids.size() > 0 || lockTable.get(pid).lockType == true){	
-					return false;
-				//
-				} else if (lockTable.get(pid).tids.size() == 1 && lockTable.get(pid).tids.get(0) == tid){
+				if (lockTable.get(pid).tids.size() == 0){
+					// no competition
 					lockTable.get(pid).lockType = true;
+					lockTable.get(pid).tids.add(tid);
+					waitingTxns.get(pid).remove(tid);
 					return true;
-				//
-				} else {			
-					lockTable.get(pid).tids.add(0, tid);
-					lockTable.get(pid).lockType = true; // exclusive
+					
+				} else if (lockTable.get(pid).tids.size() == 1 && lockTable.get(pid).tids.get(0).equals(tid)){
+					// upgrade
+					lockTable.get(pid).lockType = true;
+					waitingTxns.get(pid).remove(tid);
 					return true;
+					
+				} else {
+					// not today kid
+					return false;
 				}
+	
 			} else {
 				LockEntry entry = new LockEntry();
+				entry.lockType = true;
+				entry.tids.add(tid);
 				lockTable.put(pid, entry);
-				return false;
+				return true;
 			}
 		} else {
-			
 			// acquiring read only lock
-
-			if (!waitingTxns.containsKey(pid)){ // !lockTable.containsKey(pid)
+						
+			if (!waitingTxns.containsKey(pid)){
 				LinkedList<TransactionId> ll = new LinkedList<TransactionId>();
 				ll.add(tid);
 				waitingTxns.put(pid, ll);
@@ -131,18 +93,25 @@ public class LockManager {
 					waitingTxns.get(pid).add(tid);
 				}
 			}
-			if (lockTable.containsKey(pid)){
-											
+			
+			if (lockTable.containsKey(pid)){			
 				// someone (who isn't us) has an exclusive lock!
-				if (lockTable.get(pid).lockType == true && !lockTable.get(pid).tids.get(0).equals(tid)){					
+				if (lockTable.get(pid).lockType == true && !lockTable.get(pid).tids.get(0).equals(tid)){
 					return false;
+				} else {
+					
+					lockTable.get(pid).tids.add(tid);
+					lockTable.get(pid).lockType = false;
+					waitingTxns.get(pid).remove(tid);
+					return true;
 				}
-				lockTable.get(pid).tids.add(tid);
-				return true;
+				
 			} else {
 				LockEntry entry = new LockEntry();
+				entry.lockType = false;
+				entry.tids.add(tid);
 				lockTable.put(pid, entry);
-				return false;
+				return true;
 			}
 		}
 	}
@@ -151,8 +120,6 @@ public class LockManager {
 		System.out.println("ReleaseLock called");
 		if (lockTable.containsKey(pid)){
 			lockTable.get(pid).tids.remove(tid);
-			
-			// This was the bug!!
 			lockTable.get(pid).lockType = false;
 			
 		} else {
@@ -160,7 +127,6 @@ public class LockManager {
 		}
 	}
 	
-	// gets called following a transaction, probably
 	public void releaseLocksAndRequests(TransactionId tid){
 				
 		for (PageId p : lockTable.keySet()){
@@ -178,14 +144,23 @@ public class LockManager {
 		}
 	}
 	
-	public synchronized boolean holdsLock(TransactionId tid, PageId pid){
-
-		if (lockTable.containsKey(pid) && lockTable.get(pid).tids.size() > 0){	
-			if (lockTable.get(pid).tids.contains(tid)){
-				return true;
+	public synchronized boolean holdsLock(TransactionId tid, PageId pid, Permissions perm){
+		
+		if (perm.equals(Permissions.READ_WRITE)){
+			if (lockTable.containsKey(pid)){
+				if (lockTable.get(pid).tids.size() > 0){
+					if (lockTable.get(pid).tids.get(0).equals(tid)){
+						return true;
+					}
+				}
+			}
+		} else {
+			if (lockTable.containsKey(pid)){
+				if (lockTable.get(pid).tids.contains(tid)){
+					return true;
+				}
 			}
 		}
 		return false;
 	}
-		
 }

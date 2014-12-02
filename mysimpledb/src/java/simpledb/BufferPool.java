@@ -89,17 +89,9 @@ public class BufferPool {
      */
 
     public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException { 
-    	
-    	System.out.println("in getpage");
-    	
-    	// basically if getLock takes too long we'll kill it
-//    	if (!lockManager.getLock(tid, pid, perm)){
-//    		throw new TransactionAbortedException();
-//    	}
+    	    	    	
     	lockManager.getLock(tid, pid, perm);
-    	
-    	System.out.println("got lock");
-    	
+ 	
     	for (int i = 0; i < pages.size(); i++){
     		if (pages.get(i).getId().equals(pid)){
     			timeStamps.set(i, (long) 0);
@@ -109,7 +101,7 @@ public class BufferPool {
     	
         // if it wasn't in the buffer pool
     	if (pages.size() == numPages){
-    		System.out.println("attempted eviction");
+    		//System.out.println("attempted eviction");
     		evictPage();
     	}
     	
@@ -148,8 +140,8 @@ public class BufferPool {
     /**
      * Return true if the specified transaction has a lock on the specified page
      */
-    public boolean holdsLock(TransactionId tid, PageId pid) {                                                     // cosc460
-        return lockManager.holdsLock(tid, pid);
+    public boolean holdsLock(TransactionId tid, PageId pid, Permissions perm) {                                                  // cosc460
+        return lockManager.holdsLock(tid, pid, perm);
     }
 
     /**
@@ -161,12 +153,8 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
         
-//    	System.out.println("before");
-//    	//System.out.println(lockManager.getlockTable().get(0));
-//    	
-//    	System.out.println("Completing txns");
     	if (commit){
-    		System.out.println("committing");
+    		//System.out.println("committing");
     		flushPages(tid);
     		
     	} else {
@@ -266,7 +254,7 @@ public class BufferPool {
     	
     	for (Page p : pages){
     		if (p.getId().equals(pid)){
-    			System.out.println("***pgtoflush");
+    			//System.out.println("***pgtoflush");
     			toFlush = p;
     		}
     	}
