@@ -100,6 +100,10 @@ public class BufferPool {
     	}
     	
         // if it wasn't in the buffer pool
+    	
+    	System.out.println(pages.size());
+    	System.out.println(numPages);
+    	
     	if (pages.size() == numPages){
     		//System.out.println("attempted eviction");
     		evictPage();
@@ -285,29 +289,45 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
     	
     	int lruIndex = 0;
+    	boolean canEvict = false;
     	long earliest = Long.MAX_VALUE;
+    	
+//    	for (int i = 0; i < pages.size(); i++){
+//    		if (timeStamps.get(i) < earliest){
+//    			if (pages.get(i) != null){
+//    				lruIndex = i;
+//    			}
+//    		}
+//    	}
     	
     	for (int i = 0; i < pages.size(); i++){
     		if (timeStamps.get(i) < earliest){
-    			if (pages.get(i) != null){
+    			if (pages.get(i).isDirty() == null){
+    				System.out.println("evictable page");
     				lruIndex = i;
+    				canEvict = true;
     			}
     		}
     	}
     	
-    	if (lruIndex == 0){
-    		throw new DbException("All pages are dirty, cannot evict a page");
-    	}
+//    	if (lruIndex == 0){
+//    		throw new DbException("All pages are dirty, cannot evict a page");
+//    	}
     	
     	// evict page at lruIndex
     	HeapPage hp = (HeapPage) pages.get(lruIndex);
     	
-    	try {
-    		flushPage(hp.getId());
+    	//try {
+    		//flushPage(hp.getId());
+    	if (canEvict){
     		pages.remove(hp);
     		timeStamps.remove(lruIndex);
-    	} catch (IOException e) {
-    		throw new DbException("Page wasn't flushed or evicted");
-    	}	
+    	} else {
+    		throw new DbException("Cannot 'vict");
+    	}
+		
+//    	} catch (IOException e) {
+//    		throw new DbException("Page wasn't flushed or evicted");
+//    	}	
     } 
 }
