@@ -360,7 +360,9 @@ public class TestUtil {
         public void run() {
             try {
                 Database.getBufferPool().getPage(tid, pid, perm);
+                System.out.println("If it didn't just throw an abortion, it got the lock");
                 synchronized (alock) {
+                	System.out.println("game over");
                     acquired = true;
                 }
             } catch (Exception e) {

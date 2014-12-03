@@ -102,9 +102,7 @@ public class SystemTestUtil {
             throws DbException, TransactionAbortedException, IOException {
         TransactionId tid = new TransactionId();
         matchTuples(f, tid, tuples);
-        System.out.println("ah");
         Database.getBufferPool().transactionComplete(tid);
-        System.out.println("boop");
     }
 
     public static void matchTuples(DbFile f, TransactionId tid, List<ArrayList<Integer>> tuples)
@@ -125,7 +123,7 @@ public class SystemTestUtil {
     	//System.out.println(copy.size());
     	//System.out.println(copy.toString()); // array of 1 tuple! seems legit
     	
-    	System.out.println("ok");
+    	//System.out.println("ok");
         if (Debug.isEnabled()) {
     	//if (true){
             Debug.log("Expected tuples:");
@@ -139,16 +137,18 @@ public class SystemTestUtil {
     	
     	//System.out.println(iterator.toString());
     	
-    	System.out.println("opening...");
+        
+        
+    	//System.out.println("opening..!");
     	iterator.open();
-    	System.out.println("iterator opened");
+    	//System.out.println("iterator opened");
         
         // this is executing one more time than it should ()
     	// since there is one element, this should only 'haveNext' once!
     	int i = 0;
         //while (iterator.hasNext()) { // too permeable
     	while(iterator.hasNext()){
-        	System.out.println("iteraton:"+i);
+        	//System.out.println("iteraton:"+i);
         	i++;
         	
             Tuple t = iterator.next();

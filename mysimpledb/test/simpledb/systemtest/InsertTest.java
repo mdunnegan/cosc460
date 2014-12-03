@@ -69,8 +69,9 @@ public class InsertTest extends SimpleDbTestBase {
         //System.out.println("sourceTuples:\t"+sourceTuples.toString());
         
         // a file, and a tuple 
-        
+        System.out.println("before matchtuples");
         SystemTestUtil.matchTuples(destination, sourceTuples); // fails here...
+        System.out.println("after matchtuples");
         //System.out.println("finally finished..");
     }
 

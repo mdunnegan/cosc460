@@ -110,8 +110,7 @@ public class LockingTest2 extends TestUtil.CreateHeapFile {
      */
     @Test
     public void acquireReadLocksOnSamePage() throws Exception {
-        metaLockTester(tid1, p0, Permissions.READ_ONLY,
-                tid2, p0, Permissions.READ_ONLY, true);
+        metaLockTester(tid1, p0, Permissions.READ_ONLY, tid2, p0, Permissions.READ_ONLY, true);
     }
 
     /**
