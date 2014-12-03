@@ -24,8 +24,10 @@ public class LockManager {
 	}
 	
 	public void getLock(TransactionId tid, PageId pid, Permissions mode) throws TransactionAbortedException{
+		
+		System.out.println("Transaction " + tid + " wants a " +mode+ "lock on page " +pid);
 		if (holdsLock(tid, pid, mode)){
-			System.out.println("held lock");
+			//System.out.println("held lock");
 		} else {
 			
 			long tStart = System.currentTimeMillis();
@@ -33,15 +35,17 @@ public class LockManager {
 			while (!lockHeld){
 				if (System.currentTimeMillis() - tStart > 3000){
 					//System.out.println("Timed out!");
+					System.out.println("Aborted: Transaction " + tid + " wanted a " +mode+ " lock on page " +pid);
 					throw new TransactionAbortedException();
 				}
 				lockHeld = requestLock(tid, pid, mode);
 			}
-		}			 	
+		}	
+		System.out.println("Transaction " + tid + " got a " +mode+ "lock on page " +pid);
 	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
-				
+		
 		if (mode.equals(Permissions.READ_WRITE)){
 			
 			if (!waitingTxns.containsKey(pid)){
@@ -75,6 +79,10 @@ public class LockManager {
 				}
 	
 			} else {
+				// added at 1:08, didn't change anything. 
+				waitingTxns.get(pid).remove(tid);
+				//
+			
 				LockEntry entry = new LockEntry();
 				entry.lockType = true;
 				entry.tids.add(tid);
@@ -117,13 +125,13 @@ public class LockManager {
 	}
 	
 	public synchronized void releaseLock(PageId pid, TransactionId tid){
-		System.out.println("ReleaseLock called");
+		//System.out.println("ReleaseLock called");
 		if (lockTable.containsKey(pid)){
 			lockTable.get(pid).tids.remove(tid);
 			lockTable.get(pid).lockType = false;
 			
 		} else {
-			System.out.println("No threads held this lock");
+			//System.out.println("No threads held this lock");
 		}
 	}
 	

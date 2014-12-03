@@ -156,7 +156,7 @@ public class BufferPool {
     	if (commit){
     		//System.out.println("committing");
     		flushPages(tid);
-    		
+    		System.out.println("Transaction " + tid + " commited and released locks");
     	} else {
     		// all pages that are dirtied by this txn will be replaced by their Catalog version
     		Catalog c = Database.getCatalog();
