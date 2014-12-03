@@ -76,10 +76,10 @@ public class Delete extends Operator {
     		t = child.next();
     		
     		try {
-    			System.out.println("Trying to Delete in Delete!");
-    			System.out.println("before: " + b.getNumberOfPages());
+    			//System.out.println("Trying to Delete in Delete!");
+    			//System.out.println("before: " + b.getNumberOfPages());
 				b.deleteTuple(trid, t);
-				System.out.println("after: " + b.getNumberOfPages());
+				//System.out.println("after: " + b.getNumberOfPages());
 				numTuplesDeleted++;
 			} catch (IOException e) {
 				throw new TransactionAbortedException();

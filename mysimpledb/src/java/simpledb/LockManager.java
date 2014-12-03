@@ -28,6 +28,7 @@ public class LockManager {
 		System.out.println("Transaction " + tid + " wants a " +mode+ "lock on page " +pid);
 		if (holdsLock(tid, pid, mode)){
 			//System.out.println("held lock");
+			System.out.println("Transaction " + tid + " hld a " +mode+ "lock on page " +pid);
 		} else {
 			
 			long tStart = System.currentTimeMillis();
@@ -40,8 +41,9 @@ public class LockManager {
 				}
 				lockHeld = requestLock(tid, pid, mode);
 			}
+			System.out.println("Transaction " + tid + " got a " +mode+ "lock on page " +pid);
 		}	
-		System.out.println("Transaction " + tid + " got a " +mode+ "lock on page " +pid);
+		
 	}
 
 	public synchronized boolean requestLock(TransactionId tid, PageId pid, Permissions mode){
@@ -141,13 +143,18 @@ public class LockManager {
 			if (lockTable.get(p).tids.contains(tid)){
 				releaseLock(p, tid);
 			}
-		}
+		} // seems right
 		
 		for (PageId p : waitingTxns.keySet()){
-			for (TransactionId t : waitingTxns.get(p)){
-				if (t.equals(tid)){
-					waitingTxns.get(p).remove(t);
-				}
+			// this one lets 2thread test pass...
+//			for (TransactionId t : waitingTxns.get(p)){
+//				if (t.equals(tid)){
+//					waitingTxns.get(p).remove(t);
+//				}
+//			}
+			// this one doesn't let 2thread test pass, but it seems more correct
+			while(waitingTxns.get(p).contains(tid)){
+				waitingTxns.get(p).remove(tid);
 			}
 		}
 	}
@@ -156,7 +163,7 @@ public class LockManager {
 		
 		if (perm.equals(Permissions.READ_WRITE)){
 			if (lockTable.containsKey(pid)){
-				if (lockTable.get(pid).tids.size() > 0){
+				if (lockTable.get(pid).tids.size() == 1){
 					if (lockTable.get(pid).tids.get(0).equals(tid)){
 						return true;
 					}

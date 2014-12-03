@@ -236,7 +236,7 @@ public class HeapFile implements DbFile {
 			pageNum = 0;
 			//System.out.println("1");
 			HeapPageId hpid = new HeapPageId(hf.getId(), pageNum);
-			System.out.println("In heapfile iterator open, calling getPage");
+			//System.out.println("In heapfile iterator open, calling getPage");
 			
 			// ATTENTION: InsertTest is failing at getPage in the following line. There is an exclusive
 			// write lock that isn't giving up the lock
