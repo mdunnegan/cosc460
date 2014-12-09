@@ -93,9 +93,50 @@ class LogFileRecovery {
      * @throws java.io.IOException if tidToRollback has already committed
      */
     public void rollback(TransactionId tidToRollback) throws IOException {
-        readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+        
+    	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+    	long pointerToNextRecent = readOnlyLog.length()-LogFile.LONG_SIZE;
 
-        // some code goes here
+        while(true){
+        	
+        	readOnlyLog.seek(pointerToNextRecent);
+        	long beginLogEntry = readOnlyLog.readLong();
+        	
+        	readOnlyLog.seek(beginLogEntry);
+        	
+        	long hook = beginLogEntry;
+        	int type = readOnlyLog.readInt();
+        	long tid = readOnlyLog.readLong();
+        	
+        	        	        	
+        	System.out.println("log type:\t"+type);
+        	        	
+        	if (type == LogType.BEGIN_RECORD){
+        		System.out.println("looking begin");
+        		if (tid == tidToRollback.getId()){
+        			System.out.println("begin");
+        			// it MUST get here at some point
+        			return;
+        		}
+        	} else if (type == LogType.COMMIT_RECORD){
+        		System.out.println("looking commit");
+        		if (tid == tidToRollback.getId()){
+        			System.out.println("commit?");
+        			throw new IOException("Tried to roll back a committed transaction");
+        		}
+        	} else if (type == LogType.UPDATE_RECORD){
+        		System.out.println("looking update");
+        		if (tid == tidToRollback.getId()){
+        			System.out.println("update");
+        			Page before = LogFile.readPageData(readOnlyLog);
+        			DbFile file =  Database.getCatalog().getDatabaseFile(before.getId().getTableId());
+        			file.writePage(before);
+        			BufferPool bp = Database.getBufferPool();
+        			bp.discardPage(before.getId());
+        		}
+        	}    
+        	pointerToNextRecent = hook - LogFile.LONG_SIZE; // puts us at top of the next thing
+        }        
     }
 
     /**

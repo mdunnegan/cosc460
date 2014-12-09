@@ -25,10 +25,10 @@ public class LockManager {
 	
 	public void getLock(TransactionId tid, PageId pid, Permissions mode) throws TransactionAbortedException{
 		
-		System.out.println("Transaction " + tid + " wants a " +mode+ "lock on page " +pid);
+		//System.out.println("Transaction " + tid + " wants a " +mode+ "lock on page " +pid);
 		if (holdsLock(tid, pid, mode)){
 			//System.out.println("held lock");
-			System.out.println("Transaction " + tid + " hld a " +mode+ "lock on page " +pid);
+			//System.out.println("Transaction " + tid + " hld a " +mode+ "lock on page " +pid);
 		} else {
 			
 			long tStart = System.currentTimeMillis();
@@ -36,12 +36,12 @@ public class LockManager {
 			while (!lockHeld){
 				if (System.currentTimeMillis() - tStart > 3000){
 					//System.out.println("Timed out!");
-					System.out.println("Aborted: Transaction " + tid + " wanted a " +mode+ " lock on page " +pid);
+					//System.out.println("Aborted: Transaction " + tid + " wanted a " +mode+ " lock on page " +pid);
 					throw new TransactionAbortedException();
 				}
 				lockHeld = requestLock(tid, pid, mode);
 			}
-			System.out.println("Transaction " + tid + " got a " +mode+ "lock on page " +pid);
+			//System.out.println("Transaction " + tid + " got a " +mode+ "lock on page " +pid);
 		}	
 		
 	}
@@ -83,7 +83,6 @@ public class LockManager {
 			} else {
 				// added at 1:08, didn't change anything. 
 				waitingTxns.get(pid).remove(tid);
-				//
 			
 				LockEntry entry = new LockEntry();
 				entry.lockType = true;
@@ -146,13 +145,7 @@ public class LockManager {
 		} // seems right
 		
 		for (PageId p : waitingTxns.keySet()){
-			// this one lets 2thread test pass...
-//			for (TransactionId t : waitingTxns.get(p)){
-//				if (t.equals(tid)){
-//					waitingTxns.get(p).remove(t);
-//				}
-//			}
-			// this one doesn't let 2thread test pass, but it seems more correct
+
 			while(waitingTxns.get(p).contains(tid)){
 				waitingTxns.get(p).remove(tid);
 			}

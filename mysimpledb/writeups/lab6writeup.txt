@@ -5,18 +5,41 @@ Exercise 1.
 
 1. Briefly explain how logging is done in SimpleDB by describing when log records are written to the log.  Use Eclipse search tools to find all uses of the LogFile methods in the SimpleDB source code.
 
-    <Replace this text with your answer>
-
+	preAppend - called in LogFile.logAbort, .lockCheckpoint, .logCLR, .logCommit,
+				.logWrite, .logXactionBegin)
+	checkActive doesn't do anything
+    logXaction - Transaction.start
+    logCommit - Transaction.transactionComplete
+    logAbort(TransactionId tid) *excluding tests - Transaction.transactionComplete
+    logAbort(Long tid) - not called
+    logWrite - called in BufferPool.flushPage 
+    logCLR(TransactionId tid, Page after) - not called
+    logCLR(Long tid, Page after) - called in other logCLR
+    writePageData - LogFile.logCLR(Long, Page), LogFile.logWrite
+    readPageData - LogFile.logFileRecovery.print
+    logCheckpoint - LogFile.shutdown, 3 tests
+    logTruncate - LogFile.logCheckpoint
+    shutdown - not called
+    recover - only called in a systemtest
+    force - BufferPool.flushPage, LogFile.logAbort, LogFile.logCheckpoint, LogFile.logCommit
+   
+    Records are written to the log when the BufferPool flushes pages. This is the force policy. 
 
 2. Where is LogFile.force called?  You should include usages inside other LogFile methods.  For each usage, why is it important that force is called?
 
-    <Replace this text with your answer>
+    It is called in:
+    BufferPool.flushPage: Before the BufferPool flushes actual data, it flushes the log file
+    LogFile.logAbort: If a transaction aborts, the log file must indicate that it did
+    LogFile.logCheckpoint: At a checkpoint, we must push everything to disk, including the log file. 
+    LogFile.logCommit: If a transaction commits, the log file must indicated that it commited
+    
 
 
 3. Where is setBeforeImage image called?  
 
-    <Replace this text with your answer>
-
+    BufferPool.transactionComplete. if the transaction is committing, we set the before image to the image we just committed
+    It's also set in the HeapPage constructor. 
+    
 
 Exercise 4.
 

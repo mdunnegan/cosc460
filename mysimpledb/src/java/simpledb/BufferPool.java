@@ -100,19 +100,13 @@ public class BufferPool {
     	}
     	
         // if it wasn't in the buffer pool
-    	
-    	System.out.println(pages.size());
-    	System.out.println(numPages);
-    	
     	if (pages.size() == numPages){
-    		//System.out.println("attempted eviction");
     		evictPage();
     	}
     	
     	// get the page from the catalog
     	Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
     	    	
-    	// These better line up...
     	pages.add(page);
     	timeStamps.add( (long) System.currentTimeMillis());
     	
@@ -157,10 +151,13 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
         
-    	if (commit){
-    		//System.out.println("committing");
+    	if (commit){    		
     		flushPages(tid);
-    		System.out.println("Transaction " + tid + " commited and released locks");
+    		
+    		for (Page p : pages){
+    			p.setBeforeImage();
+    		}
+    		
     	} else {
     		// all pages that are dirtied by this txn will be replaced by their Catalog version
     		Catalog c = Database.getCatalog();
@@ -230,9 +227,9 @@ public class BufferPool {
      */
     public synchronized void flushAllPages() throws IOException {
         for (Page p : pages){
-        	if (p.isDirty() != null){
+        	//if (p.isDirty() != null){
         		flushPage(p.getId());
-        	}
+        	//}
         }
     }
 
@@ -243,8 +240,13 @@ public class BufferPool {
      * cache.
      */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // only necessary for lab6                                                                            // cosc460
+        for (Page p : pages){
+        	if (p.getId().equals(pid)){
+        		pages.remove(p);
+        		timeStamps.remove(p);
+        		return;
+        	}
+        }
     }
 
     /**
@@ -258,11 +260,17 @@ public class BufferPool {
     	
     	for (Page p : pages){
     		if (p.getId().equals(pid)){
-    			//System.out.println("***pgtoflush");
     			toFlush = p;
+    			// append an update record to the log, with 
+    	        // a before-image and after-image.
+    	    	TransactionId dirtier = toFlush.isDirty();
+    	        if (dirtier != null){
+    	            Database.getLogFile().logWrite(dirtier, toFlush.getBeforeImage(), toFlush);
+    	            Database.getLogFile().force();
+    	        }
     		}
     	}
-
+    	
     	DbFile table = Database.getCatalog().getDatabaseFile(pid.getTableId());
     	table.writePage(toFlush);
     	toFlush.markDirty(false, new TransactionId());
@@ -272,7 +280,6 @@ public class BufferPool {
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        //
     	for (Page p : pages){
     		if (p.isDirty() != null){
 	    		if (p.isDirty().equals(tid)){
@@ -303,17 +310,12 @@ public class BufferPool {
     	for (int i = 0; i < pages.size(); i++){
     		if (timeStamps.get(i) < earliest){
     			if (pages.get(i).isDirty() == null){
-    				System.out.println("evictable page");
     				lruIndex = i;
     				canEvict = true;
     			}
     		}
     	}
-    	
-//    	if (lruIndex == 0){
-//    		throw new DbException("All pages are dirty, cannot evict a page");
-//    	}
-    	
+
     	// evict page at lruIndex
     	HeapPage hp = (HeapPage) pages.get(lruIndex);
     	
