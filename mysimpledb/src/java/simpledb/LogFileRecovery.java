@@ -3,6 +3,7 @@ package simpledb;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Set;
 
 /**
@@ -100,16 +101,14 @@ class LogFileRecovery {
         while(true){
         	
         	readOnlyLog.seek(pointerToNextRecent);
-        	long beginLogEntry = readOnlyLog.readLong();
-        	
+        	long beginLogEntry = readOnlyLog.readLong(); 	
         	readOnlyLog.seek(beginLogEntry);
         	
         	long hook = beginLogEntry;
         	int type = readOnlyLog.readInt();
         	long tid = readOnlyLog.readLong();
-        	
-        	        	        	
-        	System.out.println("log type:\t"+type);
+        	      	        	        	
+        	//System.out.println("log type:\t"+type);
         	        	
         	if (type == LogType.BEGIN_RECORD){
         		System.out.println("looking begin");
@@ -149,7 +148,144 @@ class LogFileRecovery {
      */
     public void recover() throws IOException {
 
-        // some code goes here
+    	print();
+    	
+        // read the last checkpoint!
+    	readOnlyLog.seek(0);
+    	
+    	long recentCheckpoint = readOnlyLog.readLong();
+    	if (recentCheckpoint == -1){
+    		readOnlyLog.seek(0);
+    		recentCheckpoint = LogFile.LONG_SIZE;
+    	}
+    	
+    	// goes to most recent checkpoint
+    	readOnlyLog.seek(recentCheckpoint);
+    	// skips checkpoints information
+    	readOnlyLog.readInt();  // skips past ckeckpoints type (which is ckpt) - could verify this
+    	readOnlyLog.readLong(); // skips past checkpoints tid, who cares
 
+    	// scan forward and determine loser transactions
+    	// scanning checkpoint: read int: read longs for int number of times; this will be end of ckpt
+    	int numTxnsInCkpt = readOnlyLog.readInt();
+    	
+    	System.out.println("num txns in ckpt: " + numTxnsInCkpt);
+    	
+    	LinkedList<Long> tids = new LinkedList<Long>(); // I hate linked lists!
+    	for (int i = 0; i < numTxnsInCkpt; i++){
+    		tids.add(readOnlyLog.readLong()); // 0 almost always. weird
+    	}
+    	
+    	// must read another long to ignore the checkpoint pointer
+    	
+    	readOnlyLog.readLong();
+    	
+    	System.out.println("num tids:" + tids.size());
+    	
+    	// redo!
+    	while (readOnlyLog.getFilePointer() < readOnlyLog.length()){ // or hasnext or whatever...
+    		
+    		// get type and tids
+    		int type = readOnlyLog.readInt();
+    		long tid = readOnlyLog.readLong();
+    		
+    		if (type == LogType.UPDATE_RECORD){
+    			System.out.println("update");
+    			// perform update
+    			//readOnlyLog.readLong(); // skip the old value 
+//    			Page beforeImage = LogFile.readPageData(readOnlyLog); // error? 
+//    			Page afterImage = LogFile.readPageData(readOnlyLog);
+//    			DbFile file =  Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
+//    			BufferPool bp = Database.getBufferPool();
+//    			bp.discardPage(beforeImage.getId());
+//    			file.writePage(afterImage);
+    			
+    			//readOnlyLog.readLong(); // why was I doing this?
+    			LogFile.readPageData(readOnlyLog);
+                Page afterImage = LogFile.readPageData(readOnlyLog);
+                int tableId = afterImage.getId().getTableId();
+                Database.getCatalog().getDatabaseFile(tableId).writePage(afterImage);
+    			
+    		} else if (type == LogType.ABORT_RECORD){
+    			System.out.println("abort");
+    			tids.remove(tid);
+    			//tids.remove(readOnlyLog.readInt()); 
+    			
+    		} else if (type == LogType.COMMIT_RECORD){
+    			System.out.println("commit");
+    			tids.remove(tid);
+    			//tids.remove(readOnlyLog.readInt());
+    			
+    		} else if (type == LogType.CHECKPOINT_RECORD){
+    			System.out.println("checkpoint");
+//    			int count = readOnlyLog.readInt();
+//                for (int i = 0; i < count; i++) {
+//                    long nextTid = readOnlyLog.readLong();
+//                    tids.add(nextTid);
+//                }
+    			throw new RuntimeException("Found another checkpoint?");
+    		} else if (type == LogType.CLR_RECORD){ // very similar to update, but ...
+    			Page afterImg = LogFile.readPageData(readOnlyLog);
+                int tableId = afterImg.getId().getTableId();
+                Database.getCatalog().getDatabaseFile(tableId).writePage(afterImg);
+    		} else if (type == LogType.BEGIN_RECORD){
+    			System.out.println("begin");
+    			tids.add(tid);
+    		}
+    		readOnlyLog.readLong(); // goes past the pointer address space
+    	}
+    	
+    	// undo!
+    	// remember to make CLR's for each update to a loser txn, i think
+    	
+    	System.out.println("Hey made past redo here");
+    	
+    	long pointerToNextRecent = readOnlyLog.length()-LogFile.LONG_SIZE;
+    	
+    	for (int i = 0; i < tids.size(); i++){
+    		System.out.println("tid at i: "+tids.get(i));
+    	}
+    	
+    	while (!tids.isEmpty()){  	
+    		readOnlyLog.seek(pointerToNextRecent);
+    		
+        	long beginLogEntry = readOnlyLog.readLong();
+        	readOnlyLog.seek(beginLogEntry);
+        	
+        	long hook = beginLogEntry;
+        	int type = readOnlyLog.readInt();
+        	long tid = readOnlyLog.readLong();
+        	
+        	if (tids.contains(tid)){ // if a loser?
+        		if (type == LogType.UPDATE_RECORD){
+        			// set the before image
+        			Page beforeImage = LogFile.readPageData(readOnlyLog);
+        			DbFile file =  Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
+        			
+        			// add a clr?
+        			//file.writePage(beforeImage);
+        			        			
+        		} else if (type == LogType.BEGIN_RECORD){
+        			tids.remove(readOnlyLog.readInt());
+        		}
+        		
+        	} else {
+        		//skip it
+        		pointerToNextRecent = hook - LogFile.LONG_SIZE; // puts us at top of the next thing
+        	}
+    	}
+    	    	
+    	// redo phase:
+    	// loser txns never abort or commit
+    	// winner txns commit or abort
+    	// loop forward in readOnlyLog, if update, redo it!
+    	// if a txn commits or aborts, remove it from numTxnsInCkpt
+    	
+    	// undo phase:
+    	// start from bottom, traverse up
+    	// if txn is an update and it's a loser
+    	//     undo it's stuff
+    	//     write a CLR
+        	
     }
 }

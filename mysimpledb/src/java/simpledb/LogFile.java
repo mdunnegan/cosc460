@@ -70,6 +70,8 @@ import java.lang.reflect.*;
  * of the record is an integer count of the number of transactions, as well
  * as a long integer transaction id for each active transaction.
  * <p/>
+ * 
+ * checkpoint: int type, long tid, int numtxns, [long tid]
  * </ul>
  *
  * @author mhay, adapted from Madden
