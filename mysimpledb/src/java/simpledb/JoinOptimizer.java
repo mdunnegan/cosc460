@@ -155,33 +155,40 @@ public class JoinOptimizer {
 
     	if (joinOp.equals(Op.EQUALS)){
     		
-    		if (t1pkey){
-            	return card1;
-            }
-            if (t2pkey){
-            	return card2;
-            }
-            
-            Catalog c = Database.getCatalog();
+    		Catalog c = Database.getCatalog();
             
             int table1id = tableAliasToId.get(table1Alias);
-            int table2id = tableAliasToId.get(table1Alias);
-                        
-            TableStats table1stats = stats.get(table1Alias);
-            TableStats table2stats = stats.get(table2Alias);
+            int table2id = tableAliasToId.get(table1Alias); 
+            
+            String table1name = c.getTableName(table1id);
+            String table2name = c.getTableName(table2id);
+            
+            TableStats table1stats = stats.get(table1name);
+            TableStats table2stats = stats.get(table2name);
             
             int indexOfAttrTable1 = c.getTupleDesc(table1id).fieldNameToIndex(field1PureName);
-            int indexOfAttrTable2 = c.getTupleDesc(table2id).fieldNameToIndex(field2PureName);
+            int indexOfAttrTable2 = c.getTupleDesc(table2id).fieldNameToIndex(field2PureName); 
             
             int numDistinctVals1 = table1stats.numDistinctValues(indexOfAttrTable1);
             int numDistinctVals2 = table2stats.numDistinctValues(indexOfAttrTable2);
-            
-            return card1 * card2 / Math.max(numDistinctVals1, numDistinctVals2);
     		
-    	} else { // GT, LT, others
+        	int cardinality = (int)Math.round((double)(card1*card2) / Math.max(numDistinctVals1, numDistinctVals2));
+        	 
+        	if(t1pkey && (cardinality > card1)) {
+        		cardinality = card1;
+        	}
+        	if(t2pkey && (cardinality > card2)) {
+        		cardinality = card2;
+        	}
+        	
+        	if (cardinality == 0 || cardinality >= 1){
+        		return cardinality;
+        	}
+        	return 1;
+        	
+    	} else {
     		return (int) (card1*card2*0.30);
     	}
-
     }
 
     /**

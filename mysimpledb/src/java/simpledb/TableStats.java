@@ -153,8 +153,8 @@ public class TableStats {
 		}
     	
     	// populate each histogram
-    	
-    	tupleNum = 0;
+    	numTups = tupleNum;
+    	//tupleNum = 0;
     	try {
     		iterator.rewind();
 			while (iterator.hasNext()){
@@ -172,13 +172,11 @@ public class TableStats {
 				}
 				tupleNum++;
 			}
-			
-
-			
+	
 		} catch (DbException | TransactionAbortedException e) {
 			e.printStackTrace();
 		}
-    	numTups = tupleNum;
+    	
     }
 
     /**

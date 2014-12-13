@@ -97,7 +97,8 @@ class LogFileRecovery {
         
     	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
     	long pointerToNextRecent = readOnlyLog.length()-LogFile.LONG_SIZE;
-
+    	LogFile writeLog = Database.getLogFile();
+    	
         while(true){
         	
         	readOnlyLog.seek(pointerToNextRecent);
@@ -111,31 +112,31 @@ class LogFileRecovery {
         	//System.out.println("log type:\t"+type);
         	        	
         	if (type == LogType.BEGIN_RECORD){
-        		System.out.println("looking begin");
         		if (tid == tidToRollback.getId()){
-        			System.out.println("begin");
+        			//System.out.println("begin");
         			// it MUST get here at some point
+        			writeLog.logAbort(tid);
         			return;
         		}
         	} else if (type == LogType.COMMIT_RECORD){
-        		System.out.println("looking commit");
         		if (tid == tidToRollback.getId()){
-        			System.out.println("commit?");
+        			//System.out.println("commit?");
         			throw new IOException("Tried to roll back a committed transaction");
         		}
         	} else if (type == LogType.UPDATE_RECORD){
-        		System.out.println("looking update");
         		if (tid == tidToRollback.getId()){
-        			System.out.println("update");
-        			Page before = LogFile.readPageData(readOnlyLog);
-        			DbFile file =  Database.getCatalog().getDatabaseFile(before.getId().getTableId());
-        			file.writePage(before);
+        			//System.out.println("update");
+        			Page beforeImage = LogFile.readPageData(readOnlyLog);
+        			DbFile file =  Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
+        			file.writePage(beforeImage);
+        			
         			BufferPool bp = Database.getBufferPool();
-        			bp.discardPage(before.getId());
+        			bp.discardPage(beforeImage.getId());
+        			writeLog.logCLR(tidToRollback, beforeImage);
         		}
-        	}    
+        	}
         	pointerToNextRecent = hook - LogFile.LONG_SIZE; // puts us at top of the next thing
-        }        
+        }  
     }
 
     /**
@@ -180,56 +181,40 @@ class LogFileRecovery {
     	
     	readOnlyLog.readLong();
     	
-    	System.out.println("num tids:" + tids.size());
+    	//System.out.println("num tids:" + tids.size());
     	
     	// redo!
-    	while (readOnlyLog.getFilePointer() < readOnlyLog.length()){ // or hasnext or whatever...
+    	while (readOnlyLog.getFilePointer() < readOnlyLog.length()){ // optional - LogFile.LONG_SIZE
     		
     		// get type and tids
     		int type = readOnlyLog.readInt();
     		long tid = readOnlyLog.readLong();
     		
     		if (type == LogType.UPDATE_RECORD){
-    			System.out.println("update");
-    			// perform update
-    			//readOnlyLog.readLong(); // skip the old value 
-//    			Page beforeImage = LogFile.readPageData(readOnlyLog); // error? 
-//    			Page afterImage = LogFile.readPageData(readOnlyLog);
-//    			DbFile file =  Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
-//    			BufferPool bp = Database.getBufferPool();
-//    			bp.discardPage(beforeImage.getId());
-//    			file.writePage(afterImage);
-    			
-    			//readOnlyLog.readLong(); // why was I doing this?
+    			//System.out.println("update " + tid);
     			LogFile.readPageData(readOnlyLog);
                 Page afterImage = LogFile.readPageData(readOnlyLog);
                 int tableId = afterImage.getId().getTableId();
                 Database.getCatalog().getDatabaseFile(tableId).writePage(afterImage);
     			
     		} else if (type == LogType.ABORT_RECORD){
-    			System.out.println("abort");
+    			//System.out.println("abort "+ tid);
     			tids.remove(tid);
-    			//tids.remove(readOnlyLog.readInt()); 
     			
     		} else if (type == LogType.COMMIT_RECORD){
-    			System.out.println("commit");
+    			//System.out.println("commit "+tid);
     			tids.remove(tid);
-    			//tids.remove(readOnlyLog.readInt());
     			
     		} else if (type == LogType.CHECKPOINT_RECORD){
-    			System.out.println("checkpoint");
-//    			int count = readOnlyLog.readInt();
-//                for (int i = 0; i < count; i++) {
-//                    long nextTid = readOnlyLog.readLong();
-//                    tids.add(nextTid);
-//                }
+    			//System.out.println("checkpoint "+tid);
     			throw new RuntimeException("Found another checkpoint?");
     		} else if (type == LogType.CLR_RECORD){ // very similar to update, but ...
-    			Page afterImg = LogFile.readPageData(readOnlyLog);
-                int tableId = afterImg.getId().getTableId();
-                Database.getCatalog().getDatabaseFile(tableId).writePage(afterImg);
+    			//System.out.println("CLR "+tid);
+    			Page afterImage = LogFile.readPageData(readOnlyLog);
+                int tableId = afterImage.getId().getTableId();
+                Database.getCatalog().getDatabaseFile(tableId).writePage(afterImage);
     		} else if (type == LogType.BEGIN_RECORD){
-    			System.out.println("begin");
+    			//System.out.println("begin "+tid);
     			tids.add(tid);
     		}
     		readOnlyLog.readLong(); // goes past the pointer address space
@@ -238,15 +223,22 @@ class LogFileRecovery {
     	// undo!
     	// remember to make CLR's for each update to a loser txn, i think
     	
-    	System.out.println("Hey made past redo here");
-    	
-    	long pointerToNextRecent = readOnlyLog.length()-LogFile.LONG_SIZE;
-    	
+    	//System.out.println("Hey made past redo here");
+    	    	
+    	//System.out.println("*********");
     	for (int i = 0; i < tids.size(); i++){
     		System.out.println("tid at i: "+tids.get(i));
     	}
+    	//System.out.println("*********");
     	
-    	while (!tids.isEmpty()){  	
+    	//
+    	readOnlyLog.seek(readOnlyLog.length()); // undoing so move to end of logfile
+    	long pointerToNextRecent = readOnlyLog.length()-LogFile.LONG_SIZE;
+        	
+        readOnlyLog.seek(pointerToNextRecent);
+    	
+    	while (!tids.isEmpty()){
+    		//System.out.println("all tids "+tids);
     		readOnlyLog.seek(pointerToNextRecent);
     		
         	long beginLogEntry = readOnlyLog.readLong();
@@ -255,37 +247,35 @@ class LogFileRecovery {
         	long hook = beginLogEntry;
         	int type = readOnlyLog.readInt();
         	long tid = readOnlyLog.readLong();
+        	//System.out.println("this tid "+tid);
+        	
+        	LogFile writeLog = Database.getLogFile();
         	
         	if (tids.contains(tid)){ // if a loser?
         		if (type == LogType.UPDATE_RECORD){
+        			//System.out.println("Was an update to a loser tid");
         			// set the before image
         			Page beforeImage = LogFile.readPageData(readOnlyLog);
+        			LogFile.readPageData(readOnlyLog); // skip afterimage 
         			DbFile file =  Database.getCatalog().getDatabaseFile(beforeImage.getId().getTableId());
         			
-        			// add a clr?
-        			//file.writePage(beforeImage);
+        			file.writePage(beforeImage); // error must be in write
+        			writeLog.logCLR(tid, beforeImage);
         			        			
         		} else if (type == LogType.BEGIN_RECORD){
-        			tids.remove(readOnlyLog.readInt());
+        			//System.out.println("Began a loser tid");
+        			tids.remove(tid);
+        			writeLog.logAbort(tid);
+        		} else {
+        			System.out.println("Type: "+type);
         		}
-        		
-        	} else {
-        		//skip it
-        		pointerToNextRecent = hook - LogFile.LONG_SIZE; // puts us at top of the next thing
         	}
+        	pointerToNextRecent = hook - LogFile.LONG_SIZE;
     	}
-    	    	
-    	// redo phase:
-    	// loser txns never abort or commit
-    	// winner txns commit or abort
-    	// loop forward in readOnlyLog, if update, redo it!
-    	// if a txn commits or aborts, remove it from numTxnsInCkpt
-    	
-    	// undo phase:
-    	// start from bottom, traverse up
-    	// if txn is an update and it's a loser
-    	//     undo it's stuff
-    	//     write a CLR
-        	
+        // gives the same exact error...
+//        for (long tid: tids){
+//        	TransactionId t = new TransactionId(tid);
+//        	rollback(t);
+//        }
     }
 }
